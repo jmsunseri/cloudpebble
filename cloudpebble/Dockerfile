@@ -78,7 +78,15 @@ RUN pebble sdk activate 4.9.127
 ENV PEBBLE_SDK_PATH=/root/.pebble-sdk
 ENV PATH="${PEBBLE_SDK_PATH}/SDKs/current/toolchain/arm-none-eabi/bin:$PATH"
 
-# Keep JavaScript SDK examples synced to latest upstream at image build time.
+ADD requirements.txt /tmp/requirements.txt
+# Use Python 3.11 from the base image directly
+RUN /usr/local/bin/pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY . /code
+WORKDIR /code
+
+# Keep tutorial/example repos synced to latest upstream at image build time.
+# This is intentionally after COPY so each new app commit invalidates this layer.
 RUN mkdir -p /opt && \
   if [ -d "/opt/pebble-examples/.git" ]; then \
     git -C "/opt/pebble-examples" fetch --depth 1 origin main && \
@@ -101,13 +109,6 @@ RUN mkdir -p /opt && \
     rm -rf /opt/c-watchface-tutorial && \
     git clone --depth 1 --branch main "https://github.com/coredevices/c-watchface-tutorial.git" "/opt/c-watchface-tutorial"; \
   fi
-
-ADD requirements.txt /tmp/requirements.txt
-# Use Python 3.11 from the base image directly
-RUN /usr/local/bin/pip install --no-cache-dir -r /tmp/requirements.txt
-
-COPY . /code
-WORKDIR /code
 
 # Bower is awful. Run bower directly instead of Django management command
 RUN rm -rf bower_components && \
