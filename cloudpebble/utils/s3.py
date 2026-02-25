@@ -32,6 +32,8 @@ class BucketHolder(object):
     def configure(self):
         if settings.AWS_ENABLED:
             endpoint_url = getattr(settings, 'AWS_S3_ENDPOINT_URL', None)
+            s3v4_config = Config(signature_version='s3v4')
+            s3v4_path_config = Config(signature_version='s3v4', s3={'addressing_style': 'path'})
             if settings.AWS_S3_FAKE_S3 is not None:
                 # Fake S3 (e.g., minio, fake-s3) — local dev
                 host, port = (settings.AWS_S3_FAKE_S3.split(':', 2) + ['80'])[:2]
@@ -43,14 +45,14 @@ class BucketHolder(object):
                     aws_access_key_id='key_id',
                     aws_secret_access_key='secret_key',
                     endpoint_url=fake_endpoint,
-                    config=Config(s3={'addressing_style': 'path'}),
+                    config=s3v4_path_config,
                 )
                 self.s3_resource = boto3.resource(
                     's3',
                     aws_access_key_id='key_id',
                     aws_secret_access_key='secret_key',
                     endpoint_url=fake_endpoint,
-                    config=Config(s3={'addressing_style': 'path'}),
+                    config=s3v4_path_config,
                 )
                 self.supports_acl = True
 
@@ -64,14 +66,14 @@ class BucketHolder(object):
                     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                     endpoint_url=endpoint_url,
-                    config=Config(s3={'addressing_style': 'path'}),
+                    config=s3v4_path_config,
                 )
                 self.s3_resource = boto3.resource(
                     's3',
                     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                     endpoint_url=endpoint_url,
-                    config=Config(s3={'addressing_style': 'path'}),
+                    config=s3v4_path_config,
                 )
                 self.supports_acl = False
             else:
@@ -81,12 +83,14 @@ class BucketHolder(object):
                     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                     region_name=getattr(settings, 'AWS_S3_REGION', 'us-east-1'),
+                    config=s3v4_config,
                 )
                 self.s3_resource = boto3.resource(
                     's3',
                     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                     region_name=getattr(settings, 'AWS_S3_REGION', 'us-east-1'),
+                    config=s3v4_config,
                 )
                 self.supports_acl = True
 
