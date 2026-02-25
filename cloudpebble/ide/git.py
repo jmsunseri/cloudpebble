@@ -58,11 +58,11 @@ def get_github(user):
 def check_repo_access(user, repo):
     g = get_github(user)
     try:
-        repo = g.get_repo(repo)
+        repo_obj = g.get_repo(repo)
     except UnknownObjectException:
         raise
 
-    return repo.has_in_collaborators(NamedUser(None, {'login': user.github_repo_sync.username}, False))
+    return repo_obj.has_in_collaborators(user.github_repo_sync.username)
 
 
 def url_to_repo(url):
