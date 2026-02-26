@@ -33,20 +33,35 @@ def exception_reason(error):
 
 @shared_task(acks_late=True)
 def do_import_github(project_id, github_user, github_project, github_branch, delete_project=False):
+    project = None
+    user = None
     try:
-        url = "https://github.com/%s/%s/archive/%s.zip" % (github_user, github_project, github_branch)
-        if file_exists(url):
-            u = urlopen(url)
-            return do_import_archive(project_id, u.read())
-        else:
-            raise Exception("The branch '%s' does not exist." % github_branch)
-    except Exception as e:
         try:
             project = Project.objects.get(pk=project_id)
             user = project.owner
         except:
-            project = None
-            user = None
+            pass
+
+        url = "https://github.com/%s/%s/archive/%s.zip" % (github_user, github_project, github_branch)
+        auth_url = get_authenticated_archive_url(user, github_user, github_project, github_branch)
+        archive = None
+
+        if file_exists(url):
+            archive = urlopen(url)
+        elif auth_url:
+            try:
+                archive = urlopen(auth_url)
+            except (HTTPError, URLError):
+                pass
+
+        if archive is None:
+            raise Exception(
+                "Unable to import github.com/%s/%s on branch '%s'. Verify repository, branch, and access."
+                % (github_user, github_project, github_branch)
+            )
+
+        return do_import_archive(project_id, archive.read())
+    except Exception as e:
         if delete_project and project is not None:
             try:
                 project.delete()
@@ -72,6 +87,17 @@ def file_exists(url):
         return False
     else:
         return True
+
+
+def get_authenticated_archive_url(user, github_user, github_project, github_branch):
+    if user is None:
+        return None
+    try:
+        g = get_github(user)
+        repo = g.get_repo("%s/%s" % (github_user, github_project))
+        return repo.get_archive_link('zipball', ref=github_branch)
+    except:
+        return None
 
 
 @git_auth_check
