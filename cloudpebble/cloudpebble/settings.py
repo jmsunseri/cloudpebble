@@ -437,7 +437,7 @@ QEMU_PUBLIC_URL = _environ.get('QEMU_PUBLIC_URL', None) or None
 QEMU_LAUNCH_AUTH_HEADER = _environ.get('QEMU_LAUNCH_AUTH_HEADER', 'secret')
 QEMU_LAUNCH_TIMEOUT = int(_environ.get('QEMU_LAUNCH_TIMEOUT', 25))
 
-PHONE_SHORTURL = _environ.get('PHONE_SHORTURL', 'cpbl.io')
+PHONE_SHORTURL = _environ.get('PHONE_SHORTURL', 'pbl.zip/sensors')
 
 FIREBASE_PROJECT_ID = _environ.get('FIREBASE_PROJECT_ID', 'coreapp-ce061')
 
