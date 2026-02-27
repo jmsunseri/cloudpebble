@@ -218,6 +218,29 @@ CloudPebble.Settings = (function() {
                     CloudPebble.YCM.updateAppkeys(app_key_names);
                 }
 
+            }).then(function() {
+                // Save published media for package projects
+                if (CloudPebble.ProjectInfo.type != 'package') return;
+
+                var entries = [];
+                pane.find('.published-media-row').each(function() {
+                    var row = $(this);
+                    var name = row.find('.pm-name').val().trim();
+                    if (!name) return;
+                    entries.push({
+                        name: name,
+                        glance: row.find('.pm-glance').val() || '',
+                        timeline_tiny: row.find('.pm-timeline-tiny').val() || '',
+                        timeline_small: row.find('.pm-timeline-small').val() || '',
+                        timeline_large: row.find('.pm-timeline-large').val() || ''
+                    });
+                });
+
+                return Ajax.Post('/ide/project/' + PROJECT_ID + '/save_published_media', {
+                    published_media: JSON.stringify(entries)
+                }).then(function(data) {
+                    CloudPebble.ProjectInfo.published_media = data.published_media;
+                });
             }).catch(function(e) {
                 throw new Error(interpolate("Failed to save project settings. (%s) %s", [e.status, e.message]));
             });
@@ -311,6 +334,78 @@ CloudPebble.Settings = (function() {
             reset_appkey_table_values(is_array_kind);
             configure_appkey_table(is_array_kind);
         });
+
+        // Published Media management (package projects only)
+        if (CloudPebble.ProjectInfo.type == 'package') {
+            var pm_container = pane.find('#published-media-entries');
+
+            function get_identifier_options(selected) {
+                var identifiers = CloudPebble.Resources.GetAllIdentifiers();
+                var options = '<option value="">' + gettext('(none)') + '</option>';
+                _.each(identifiers, function(id) {
+                    var sel = (id === selected) ? ' selected' : '';
+                    options += '<option value="' + _.escape(id) + '"' + sel + '>' + _.escape(id) + '</option>';
+                });
+                return options;
+            }
+
+            function create_pm_row(entry) {
+                entry = entry || {name: '', glance: '', timeline_tiny: '', timeline_small: '', timeline_large: ''};
+                var row = $(
+                    '<div class="published-media-row well well-small" style="padding:8px; margin-bottom:8px;">' +
+                        '<div class="control-group">' +
+                            '<label class="control-label">' + gettext('Name') + '</label>' +
+                            '<div class="controls">' +
+                                '<input type="text" class="pm-name" value="' + _.escape(entry.name) + '" placeholder="MY_IMAGE">' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="control-group">' +
+                            '<label class="control-label">' + gettext('Glance') + '</label>' +
+                            '<div class="controls">' +
+                                '<select class="pm-glance">' + get_identifier_options(entry.glance) + '</select>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="control-group">' +
+                            '<label class="control-label">' + gettext('Timeline Tiny') + '</label>' +
+                            '<div class="controls">' +
+                                '<select class="pm-timeline-tiny">' + get_identifier_options(entry.timeline_tiny) + '</select>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="control-group">' +
+                            '<label class="control-label">' + gettext('Timeline Small') + '</label>' +
+                            '<div class="controls">' +
+                                '<select class="pm-timeline-small">' + get_identifier_options(entry.timeline_small) + '</select>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="control-group">' +
+                            '<label class="control-label">' + gettext('Timeline Large') + '</label>' +
+                            '<div class="controls">' +
+                                '<select class="pm-timeline-large">' + get_identifier_options(entry.timeline_large) + '</select>' +
+                            '</div>' +
+                        '</div>' +
+                        '<button type="button" class="btn btn-danger btn-small pm-remove"><i class="icon-trash icon-white"></i> ' + gettext('Remove') + '</button>' +
+                    '</div>'
+                );
+                row.find('.pm-remove').click(function() {
+                    row.remove();
+                    live_form.save(pane.find('#published-media-section'));
+                });
+                row.find('input, select').on('change', function() {
+                    live_form.save($(this));
+                });
+                pm_container.append(row);
+                live_form.addElement(row);
+            }
+
+            // Populate existing entries
+            _.each(CloudPebble.ProjectInfo.published_media, function(entry) {
+                create_pm_row(entry);
+            });
+
+            pane.find('#add-published-media').click(function() {
+                create_pm_row();
+            });
+        }
 
         pane.find('#settings-modern-multi-js').change(function(e) {
             if($(this).val() != '1') {

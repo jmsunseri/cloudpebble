@@ -263,6 +263,19 @@ class ResourceIdentifier(IdeModel):
         super(ResourceIdentifier, self).save(*args, **kwargs)
 
 
+class PublishedMedia(IdeModel):
+    project = models.ForeignKey('Project', related_name='published_media', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100, validators=regexes.validator('c_identifier', _("Invalid name.")))
+    glance = models.CharField(max_length=100, blank=True, null=True)
+    timeline_tiny = models.CharField(max_length=100, blank=True, null=True)
+    timeline_small = models.CharField(max_length=100, blank=True, null=True)
+    timeline_large = models.CharField(max_length=100, blank=True, null=True)
+
+    class Meta(IdeModel.Meta):
+        db_table = 'cloudpebble_published_media'
+        unique_together = (('project', 'name'),)
+
+
 class SourceFile(TextFile):
     project = models.ForeignKey('Project', related_name='source_files', on_delete=models.CASCADE)
     file_name = models.CharField(max_length=100, validators=regexes.validator('source_file_name', _('Invalid file name.')))

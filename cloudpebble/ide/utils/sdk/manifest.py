@@ -148,6 +148,24 @@ def generate_native_resource_dict(project, resources):
                 d["targetPlatforms"] = json.loads(resource_id.target_platforms)
 
             resource_map["media"].append(d)
+
+    published = project.published_media.all() if project.project_type == 'package' else []
+    if published:
+        resource_map["publishedMedia"] = []
+        for pm in published:
+            entry = {"name": pm.name}
+            if pm.glance:
+                entry["glance"] = pm.glance
+            if pm.timeline_tiny or pm.timeline_small or pm.timeline_large:
+                entry["timeline"] = {}
+                if pm.timeline_tiny:
+                    entry["timeline"]["tiny"] = pm.timeline_tiny
+                if pm.timeline_small:
+                    entry["timeline"]["small"] = pm.timeline_small
+                if pm.timeline_large:
+                    entry["timeline"]["large"] = pm.timeline_large
+            resource_map["publishedMedia"].append(entry)
+
     return resource_map
 
 

@@ -14,7 +14,7 @@ from django.utils.translation import gettext as _
 
 from ide.models.build import BuildResult
 from ide.models.project import Project, TemplateProject
-from ide.models.files import SourceFile, ResourceFile
+from ide.models.files import SourceFile, ResourceFile, PublishedMedia
 from ide.tasks.archive import create_archive, do_import_archive
 from ide.tasks.build import run_compile
 from ide.tasks.gist import import_gist
@@ -457,7 +457,8 @@ def project_info(request, project_id):
             'auto_pull': project.github_hook_uuid is not None
         },
         'supported_platforms': project.supported_platforms,
-        'has_embeddedjs': project.has_embeddedjs_files
+        'has_embeddedjs': project.has_embeddedjs_files,
+        'published_media': _serialize_published_media(project),
     }
 
 
@@ -791,6 +792,85 @@ def save_project_dependencies(request, project_id):
         raise BadRequest(str(e))
     else:
         send_td_event('cloudpebble_save_project_settings', request=request, project=project)
+
+@require_POST
+@login_required
+@json_view
+def save_published_media(request, project_id):
+    project = get_object_or_404(Project, pk=project_id, owner=request.user)
+
+    if project.project_type != 'package':
+        raise BadRequest(_("Published media is only supported for package projects."))
+
+    try:
+        entries = json.loads(request.POST['published_media'])
+    except (KeyError, json.JSONDecodeError) as e:
+        raise BadRequest(str(e))
+
+    if not isinstance(entries, list):
+        raise BadRequest(_("published_media must be a list"))
+
+    seen_names = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise BadRequest(_("Each published media entry must be an object."))
+
+        try:
+            name = (entry.get('name') or '').strip()
+        except AttributeError:
+            raise BadRequest(_("Invalid name field."))
+        if not name:
+            raise BadRequest(_("Each published media entry must have a name."))
+        if name in seen_names:
+            raise BadRequest(_("Duplicate published media name: '%s'") % name)
+        seen_names.add(name)
+
+        try:
+            glance = (entry.get('glance') or '').strip() or None
+            timeline_tiny = (entry.get('timeline_tiny') or '').strip() or None
+            timeline_small = (entry.get('timeline_small') or '').strip() or None
+            timeline_large = (entry.get('timeline_large') or '').strip() or None
+        except AttributeError:
+            raise BadRequest(_("Invalid field value in entry '%s'.") % name)
+
+        if not glance and not timeline_tiny and not timeline_small and not timeline_large:
+            raise BadRequest(_("Entry '%s' must have at least one of glance or timeline fields.") % name)
+
+        if glance and timeline_tiny and glance != timeline_tiny:
+            raise BadRequest(
+                _("Entry '%s': when both glance and timeline tiny are set, they must reference the same resource.") % name
+            )
+
+    try:
+        with transaction.atomic():
+            project.published_media.all().delete()
+            for entry in entries:
+                PublishedMedia.objects.create(
+                    project=project,
+                    name=(entry.get('name') or '').strip(),
+                    glance=(entry.get('glance') or '').strip() or None,
+                    timeline_tiny=(entry.get('timeline_tiny') or '').strip() or None,
+                    timeline_small=(entry.get('timeline_small') or '').strip() or None,
+                    timeline_large=(entry.get('timeline_large') or '').strip() or None,
+                )
+    except IntegrityError as e:
+        raise BadRequest(str(e))
+
+    return {'published_media': _serialize_published_media(project)}
+
+
+def _serialize_published_media(project):
+    return [
+        {
+            'name': pm.name,
+            'glance': pm.glance or '',
+            'timeline_tiny': pm.timeline_tiny or '',
+            'timeline_small': pm.timeline_small or '',
+            'timeline_large': pm.timeline_large or '',
+        }
+        for pm in project.published_media.all()
+    ]
+
 
 @require_POST
 @login_required

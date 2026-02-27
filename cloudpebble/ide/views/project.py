@@ -54,7 +54,7 @@ def view_project(request, project_id):
         'font_css': settings.TYPOGRAPHY_CSS,
         'libpebble_proxy': json.dumps(settings.LIBPEBBLE_PROXY),
         'cloudpebble_proxy': json.dumps(settings.CLOUDPEBBLE_PROXY),
-        'cloudpebble_proxy_v2': json.dumps(settings.CLOUDPEBBLE_PROXY_V2),
+        'cloudpebble_proxy_v2': json.dumps(None),
         'token': token,
         'firebase_token': firebase_token,
         'firebase_token_exp': firebase_token_exp,

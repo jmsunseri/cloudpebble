@@ -256,6 +256,15 @@
             </div>
         </div>
 
+        {% if project.project_type == 'package' %}
+        <div class="well" id="published-media-section">
+            <legend>{% trans "Published Media" %}</legend>
+            <p class="help-block">{% trans "Expose resources to dependent apps for AppGlance/Timeline use. Each entry references resource identifiers by name." %}</p>
+            <div id="published-media-entries"></div>
+            <button type="button" class="btn" id="add-published-media"><i class="icon-plus"></i> {% trans "Add Entry" %}</button>
+        </div>
+        {% endif %}
+
         <div class="well form-actions">
             <button type="button" id="project-export-zip" class="btn">{% trans "Download as zip" %}</button>
             <button type="button" id="project-delete" class="btn btn-danger">{% trans "Delete Project" %}</button>

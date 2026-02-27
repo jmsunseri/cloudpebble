@@ -1268,6 +1268,9 @@ CloudPebble.Resources = (function() {
         },
         GetDefaultFontFamily: function(font) {
             return CloudPebble.Resources.GetFontFamily(font, '0');
+        },
+        GetAllIdentifiers: function() {
+            return _.chain(project_resources).values().pluck('identifiers').flatten().value();
         }
     };
 })();

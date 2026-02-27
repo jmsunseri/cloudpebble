@@ -39,7 +39,7 @@ if TRAVIS:
             'PORT':     '',
         }
     }
-elif 'DATABASE_URL' not in _environ:
+elif not _environ.get('DATABASE_URL'):
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -436,7 +436,6 @@ TYPOGRAPHY_CSS = _environ.get('TYPOGRAPHY_CSS', None)
 LIBPEBBLE_PROXY = _environ.get('LIBPEBBLE_PROXY', 'wss://cloudpebble-proxy.repebble.com/tool')
 
 CLOUDPEBBLE_PROXY = _environ.get('CLOUDPEBBLE_PROXY', 'wss://cloudpebble-proxy.repebble.com/tool')
-CLOUDPEBBLE_PROXY_V2 = _environ.get('CLOUDPEBBLE_PROXY_V2', 'wss://cloudpebble-proxy.repebble.com/tool-v2')
 
 YCM_URLS = _environ.get('YCM_URLS', 'http://localhost:8002/').split(',')
 YCMD_PUBLIC_URL = _environ.get('YCMD_PUBLIC_URL', None) or None
