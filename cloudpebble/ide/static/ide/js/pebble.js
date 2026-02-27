@@ -142,6 +142,60 @@ var SharedPebble = new (function() {
         }
     }
 
+    function getPhoneConnectionType() {
+        return localStorage['phoneConnectionType'] || 'github';
+    }
+
+    function isCloudProxyConnection(kind) {
+        if (kind & ConnectionType.Qemu) {
+            return false;
+        }
+        var phoneConnectionType = getPhoneConnectionType();
+        return phoneConnectionType === 'clouddev_v2' || phoneConnectionType === 'clouddev';
+    }
+
+    function syncFirebaseTokenToSession(idToken) {
+        if (!idToken) {
+            return Promise.resolve();
+        }
+        USER_SETTINGS.firebase_token = idToken;
+        return Ajax.Post('/accounts/api/firebase-login', {
+            id_token: idToken
+        }).catch(function(error) {
+            console.warn("Failed to sync Firebase token to session:", error);
+            return null;
+        });
+    }
+
+    function refreshFirebaseTokenForCloudProxy(kind) {
+        if (!isCloudProxyConnection(kind)) {
+            return Promise.resolve();
+        }
+        if (!window.firebase || !firebase.auth) {
+            return Promise.resolve();
+        }
+        var auth = firebase.auth();
+        var user = auth.currentUser;
+        if (!user) {
+            return Promise.resolve();
+        }
+
+        return Promise.resolve(user.getIdToken(false)).then(function(idToken) {
+            if (!idToken) {
+                return null;
+            }
+            return Promise.resolve(user.getIdTokenResult(false)).then(function(result) {
+                if (result && result.expirationTime) {
+                    USER_SETTINGS.firebase_token_exp = Math.floor(new Date(result.expirationTime).getTime() / 1000);
+                }
+                return syncFirebaseTokenToSession(idToken);
+            });
+        }).catch(function(error) {
+            console.warn("Failed to refresh Firebase token:", error);
+            return null;
+        });
+    }
+
     this.getPebble = function(kind, options) {
         var showProgress = !options || options.showProgress !== false;
         if(mPebble && mPebble.is_connected()) {
@@ -157,7 +211,7 @@ var SharedPebble = new (function() {
         } else {
             watchPromise = Promise.resolve();
         }
-        return watchPromise.then(function() {
+        return Promise.join(watchPromise, refreshFirebaseTokenForCloudProxy(kind)).then(function() {
             return new Promise(function(resolve, reject) {
                 var did_connect = false;
                 mConnectionType = kind;
@@ -170,8 +224,7 @@ var SharedPebble = new (function() {
                         }
                     });
                 }
-				console.log(getWebsocketURL());
-                mPebble = new Pebble(getWebsocketURL(), getToken());
+                mPebble = new Pebble(getWebsocketURL(), getToken(), getAuthMode());
                 mPebble.on('all', handlePebbleEvent);
                 mPebble.on('proxy:authenticating', function() {
                     if(showProgress) {
@@ -183,8 +236,18 @@ var SharedPebble = new (function() {
                         CloudPebble.Prompts.Progress.Update(gettext("Waiting for phone. Make sure the developer connection is enabled."));
                     }
                 });
-                var connectionError = function() {
-                    reject(new Error(gettext("Connection interrupted")));
+                var connectionError = function(event) {
+                    var message = gettext("Connection interrupted");
+                    if (isCloudProxyConnection(mConnectionType)) {
+                        if (!getToken()) {
+                            message = gettext("Missing cloud authentication token. Please sign out and sign back in.");
+                        } else if (event && event.code === 4401) {
+                            message = gettext("Cloud authentication failed. Please sign out and sign back in.");
+                        } else if (event && event.code === 1008) {
+                            message = gettext("Cloud proxy rejected the connection.");
+                        }
+                    }
+                    reject(new Error(message));
                 };
                 mPebble.on('close error', connectionError);
                 mPebble.on('open', function() {
@@ -215,7 +278,11 @@ var SharedPebble = new (function() {
                 mEmulator = null;
                 if(showProgress) {
                     CloudPebble.Prompts.Progress.Fail();
-                    CloudPebble.Prompts.Progress.Update(interpolate(gettext("Emulator boot failed: %s"), [error.message]));
+                    if (mConnectionType & ConnectionType.Qemu) {
+                        CloudPebble.Prompts.Progress.Update(interpolate(gettext("Emulator boot failed: %s"), [error.message]));
+                    } else {
+                        CloudPebble.Prompts.Progress.Update(interpolate(gettext("Phone connection failed: %s"), [error.message]));
+                    }
                 }
                 $('#sidebar').removeClass('with-emulator with-emulator-gabbro');
                 throw error;
@@ -267,7 +334,13 @@ var SharedPebble = new (function() {
         if (mConnectionType & ConnectionType.Qemu) {
             return mEmulator.getWebsocketURL();
         }
-        if (localStorage['phoneConnectionType'] === 'devconn') {
+        if (isCloudProxyConnection(mConnectionType)) {
+            if (typeof CLOUDPEBBLE_PROXY_V2 !== 'undefined' && CLOUDPEBBLE_PROXY_V2) {
+                return CLOUDPEBBLE_PROXY_V2;
+            }
+            return CLOUDPEBBLE_PROXY.replace('/tool', '/tool-v2');
+        }
+        if (getPhoneConnectionType() === 'devconn') {
             return LIBPEBBLE_PROXY;
         }
         return CLOUDPEBBLE_PROXY;
@@ -277,10 +350,23 @@ var SharedPebble = new (function() {
         if (mConnectionType & ConnectionType.Qemu) {
             return mEmulator.getToken();
         }
-        if (localStorage['phoneConnectionType'] === 'devconn') {
+        if (getPhoneConnectionType() === 'devconn') {
             return USER_SETTINGS.token;
         }
+        if (isCloudProxyConnection(mConnectionType)) {
+            return USER_SETTINGS.firebase_token || '';
+        }
         return USER_SETTINGS.github_dev_connection ? USER_SETTINGS.github_dev_connection.token : '';
+    }
+
+    function getAuthMode() {
+        if (mConnectionType & ConnectionType.Qemu) {
+            return 'v1';
+        }
+        if (isCloudProxyConnection(mConnectionType)) {
+            return 'v2';
+        }
+        return 'v1';
     }
 
     function pickElement(elements) {

@@ -38,6 +38,8 @@ def view_project(request, project_id):
         token = request.user.social_auth.get(provider='pebble').extra_data['access_token']
     except:
         token = ''
+    firebase_token = request.session.get('firebase_id_token', '')
+    firebase_token_exp = request.session.get('firebase_id_token_exp', '')
     try:
         github_dev = request.user.github
     except:
@@ -52,7 +54,10 @@ def view_project(request, project_id):
         'font_css': settings.TYPOGRAPHY_CSS,
         'libpebble_proxy': json.dumps(settings.LIBPEBBLE_PROXY),
         'cloudpebble_proxy': json.dumps(settings.CLOUDPEBBLE_PROXY),
+        'cloudpebble_proxy_v2': json.dumps(settings.CLOUDPEBBLE_PROXY_V2),
         'token': token,
+        'firebase_token': firebase_token,
+        'firebase_token_exp': firebase_token_exp,
         'github_dev': github_dev,
         'github_repo_sync': github_repo_sync,
         'phone_shorturl': settings.PHONE_SHORTURL,

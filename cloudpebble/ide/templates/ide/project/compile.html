@@ -15,6 +15,7 @@
                             <p>
                                 <select id="phone-connection-type" style="margin-bottom: 10px;">
                                     <option value="github">{% trans 'Cloud Dev Connection' %}</option>
+                                    <option value="clouddev_v2">{% trans 'New Cloud Dev Connection' %}</option>
                                     <option value="devconn">{% trans 'Local Dev Connection' %}</option>
                                 </select>
                             </p>
@@ -27,6 +28,9 @@
                             <p class="phone-help-devconn" style="display: none;">
                                 {% blocktrans %}Make sure that the Developer Connection is enabled on your phone, and you are
         running at least phone app version 2.5 (iOS) or 2.1 (Android).{% endblocktrans %}
+                            </p>
+                            <p class="phone-help-clouddev-v2" style="display: none;">
+                                {% blocktrans %}Uses your CloudPebble sign-in session to authenticate with the new cloud developer connection.{% endblocktrans %}
                             </p>
                         </div>
                         <hr>

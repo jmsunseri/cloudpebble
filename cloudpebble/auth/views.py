@@ -77,4 +77,7 @@ def firebase_login(request):
         return json_failure("Account disabled.")
 
     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+    # Store the verified Firebase token in session for Cloud Dev Connection v2.
+    request.session['firebase_id_token'] = token
+    request.session['firebase_id_token_exp'] = decoded.get('exp')
     return json_response()

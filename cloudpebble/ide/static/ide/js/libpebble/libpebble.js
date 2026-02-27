@@ -1,7 +1,8 @@
-Pebble = function(proxy, token) {
+Pebble = function(proxy, token, authMode) {
     var self = this;
     var mProxy = proxy;
     var mToken = token;
+    var mAuthMode = authMode || 'v1';
     var mSocket;
     var mAppLogEnabled = false;
     var mHasConnected = false;
@@ -43,7 +44,7 @@ Pebble = function(proxy, token) {
     };
 
     var init = function() {
-        mSocket = new PebbleProxySocket(mProxy, mToken);
+        mSocket = new PebbleProxySocket(mProxy, mToken, mAuthMode);
         mSocket.on('error', handle_socket_error);
         mSocket.on('close', handle_socket_close);
         mSocket.on('open', handle_socket_open);

@@ -124,7 +124,13 @@ CloudPebble.Compile = (function() {
         if (connType === 'devconn') {
             pane.find('.phone-help-github').hide();
             pane.find('.phone-help-github-signin').hide();
+            pane.find('.phone-help-clouddev-v2').hide();
             pane.find('.phone-help-devconn').show();
+        } else if (connType === 'clouddev_v2' || connType === 'clouddev') {
+            pane.find('.phone-help-github').hide();
+            pane.find('.phone-help-github-signin').hide();
+            pane.find('.phone-help-devconn').hide();
+            pane.find('.phone-help-clouddev-v2').show();
         } else {
             pane.find('.phone-help-github').show();
             if (USER_SETTINGS.github_dev_connection && USER_SETTINGS.github_dev_connection.token) {
@@ -133,6 +139,7 @@ CloudPebble.Compile = (function() {
                 pane.find('.phone-help-github-signin').show();
             }
             pane.find('.phone-help-devconn').hide();
+            pane.find('.phone-help-clouddev-v2').hide();
         }
     };
 
@@ -196,6 +203,9 @@ CloudPebble.Compile = (function() {
         // Phone connection type dropdown
         var phoneConnSelect = pane.find('#phone-connection-type');
         var savedConnType = localStorage['phoneConnectionType'] || 'github';
+        if (phoneConnSelect.find('option[value="' + savedConnType + '"]').length === 0) {
+            savedConnType = 'github';
+        }
         phoneConnSelect.val(savedConnType);
         updatePhoneHelpText(savedConnType);
         phoneConnSelect.on('change', function() {
