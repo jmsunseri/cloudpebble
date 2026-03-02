@@ -69,6 +69,7 @@ services:
       - AWS_S3_SOURCE_BUCKET=${AWS_S3_SOURCE_BUCKET:-source.cloudpebble.net}
       - AWS_S3_BUILDS_BUCKET=${AWS_S3_BUILDS_BUCKET:-builds.cloudpebble.net}
       - AWS_S3_EXPORT_BUCKET=${AWS_S3_EXPORT_BUCKET:-export.cloudpebble.net}
+      - MEDIA_URL=http://nginx/s3builds/
       - PUBLIC_URL=${PUBLIC_URL}/
       - GITHUB_ID=${GITHUB_ID:-}
       - GITHUB_SECRET=${GITHUB_SECRET:-}
