@@ -276,11 +276,11 @@ CloudPebble.Compile = (function() {
         var temp_build = {started: (new Date()).toISOString(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
         update_last_build(pane, temp_build);
         pane.find('#run-build-table').prepend(build_history_row(temp_build));
+        ga('send','event', 'build', 'run', {eventValue: ++m_build_count});
         return Ajax.Post('/ide/project/' + PROJECT_ID + '/build/run').then(function() {
             mRunningBuild = true;
             return update_build_history(pane);
         });
-        ga('send','event', 'build', 'run', {eventValue: ++m_build_count});
     };
 
     var wait_for_build = function(build_id) {
