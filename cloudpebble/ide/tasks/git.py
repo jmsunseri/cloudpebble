@@ -186,13 +186,16 @@ def github_push(user, commit_message, repo_name, project):
     # Manage deleted files
     src_root = os.path.join(root, 'src')
     worker_src_root = os.path.join(root, 'worker_src')
+    paths_to_remove = []
     for path in next_tree.keys():
         if not (any(path.startswith(root+'/') for root in (src_root, resource_root, worker_src_root))):
             continue
         if path not in expected_paths:
-            del next_tree[path]
-            logger.debug("Deleted file: %s", path)
-            has_changed = True
+            paths_to_remove.append(path)
+    for path in paths_to_remove:
+        del next_tree[path]
+        logger.debug("Deleted file: %s", path)
+        has_changed = True
 
     # Compare the resource dicts
     remote_manifest_path = root + manifest_name_for_project(project)
@@ -242,10 +245,13 @@ def github_push(user, commit_message, repo_name, project):
         logger.debug("Has changed; committing")
         # GitHub seems to choke if we pass the raw directory nodes off to it,
         # so we delete those.
+        paths_to_remove = []
         for x in next_tree.keys():
             if next_tree[x]._InputGitTreeElement__mode == '040000':
-                del next_tree[x]
-                logger.debug("removing subtree node %s", x)
+                paths_to_remove.append(x)
+        for path in paths_to_remove:
+            del next_tree[path]
+            logger.debug("removing subtree node %s", path)
 
         logger.debug([x._InputGitTreeElement__mode for x in next_tree.values()])
         git_tree = repo.create_git_tree(next_tree.values())
