@@ -43,6 +43,11 @@
     </div>
     <div class="github-settings">
         <h2 class="section-heading">{% trans 'GitHub Integrations' %}</h2>
+        {% if messages %}
+        {% for message in messages %}
+        <div class="well alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
         <div class="well github-card">
             <h3 class="github-card-title">{% trans 'GitHub Repo Sync' %}</h3>
             {% if github_repo_sync and github_repo_sync.token %}
@@ -63,9 +68,10 @@
                     {% csrf_token %}
                 </form>
                 {% else %}
-                <a href="https://github.com/apps/cloudpebble-repo-sync/installations/new" target="_blank" rel="noopener" class="btn">
-                    {% trans 'Install GitHub app' %}
-                </a>
+                <form method="post" action="{% url 'ide:start_github_repo_sync_install' %}" class="github-action" target="_blank">
+                    <input type="submit" class="btn" value="{% trans 'Install GitHub app' %}">
+                    {% csrf_token %}
+                </form>
                 <form method="post" action="{% url 'ide:start_github_repo_sync_auth' %}" class="github-action">
                     <input type="submit" class="btn btn-primary" value="{% trans 'Link your GitHub account' %}">
                     {% csrf_token %}

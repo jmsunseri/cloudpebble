@@ -3,6 +3,7 @@ from urllib.request import urlopen, Request
 import uuid
 import json
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseRedirect, HttpResponseBadRequest
 from django.shortcuts import render
@@ -12,6 +13,9 @@ from ide.models.user import UserGithub, UserGithubRepoSync
 from utils.td_helper import send_td_event
 
 __author__ = 'katharine'
+
+GITHUB_REPO_SYNC_PENDING_STATES_SESSION_KEY = 'github_repo_sync_pending_states'
+GITHUB_REPO_SYNC_MAX_PENDING_STATES = 3
 
 
 @login_required
@@ -69,6 +73,12 @@ def _complete_github_auth(request, model, client_id, client_secret, callback_pat
     if user_github.nonce is None or nonce != user_github.nonce:
         return HttpResponseBadRequest('nonce mismatch.')
 
+    _store_github_token_and_profile(user_github, client_id, client_secret, callback_path, code)
+
+    return user_github
+
+
+def _store_github_token_and_profile(user_github, client_id, client_secret, callback_path, code):
     redirect_uri = settings.PUBLIC_URL.rstrip('/') + callback_path
     params = urllib.parse.urlencode({
         'client_id': client_id,
@@ -88,7 +98,36 @@ def _complete_github_auth(request, model, client_id, client_secret, callback_pat
     user_github.avatar = profile_result['avatar_url']
     user_github.save()
 
+
+def _start_repo_sync_session(user):
+    try:
+        user_github = user.github_repo_sync
+    except UserGithubRepoSync.DoesNotExist:
+        user_github = UserGithubRepoSync.objects.create(user=user)
+    user_github.nonce = uuid.uuid4().hex
+    user_github.save()
     return user_github
+
+
+def _get_pending_repo_sync_states(request):
+    return request.session.get(GITHUB_REPO_SYNC_PENDING_STATES_SESSION_KEY, [])
+
+
+def _add_pending_repo_sync_state(request, state):
+    pending_states = list(_get_pending_repo_sync_states(request))
+    if state in pending_states:
+        pending_states.remove(state)
+    pending_states.append(state)
+    request.session[GITHUB_REPO_SYNC_PENDING_STATES_SESSION_KEY] = pending_states[-GITHUB_REPO_SYNC_MAX_PENDING_STATES:]
+
+
+def _consume_pending_repo_sync_state(request, state):
+    pending_states = list(_get_pending_repo_sync_states(request))
+    if state not in pending_states:
+        return False
+    pending_states.remove(state)
+    request.session[GITHUB_REPO_SYNC_PENDING_STATES_SESSION_KEY] = pending_states
+    return True
 
 
 @login_required
@@ -143,18 +182,25 @@ def complete_github_dev_auth(request):
 
 @login_required
 @require_POST
+def start_github_repo_sync_install(request):
+    user_github = _start_repo_sync_session(request.user)
+    _add_pending_repo_sync_state(request, user_github.nonce)
+    send_td_event('cloudpebble_github_repo_sync_started', request=request)
+    return HttpResponseRedirect(
+        'https://github.com/apps/cloudpebble-repo-sync/installations/new?state=%s'
+        % urllib.parse.quote(user_github.nonce, safe='')
+    )
+
+
+@login_required
+@require_POST
 def start_github_repo_sync_auth(request):
     if not settings.GITHUB_SYNC_CLIENT_ID or not settings.GITHUB_SYNC_CLIENT_SECRET:
         return HttpResponseBadRequest('GitHub Repo Sync app is not configured.')
-    nonce = uuid.uuid4().hex
-    try:
-        user_github = request.user.github_repo_sync
-    except UserGithubRepoSync.DoesNotExist:
-        user_github = UserGithubRepoSync.objects.create(user=request.user)
-    user_github.nonce = nonce
-    user_github.save()
+    user_github = _start_repo_sync_session(request.user)
+    _add_pending_repo_sync_state(request, user_github.nonce)
     send_td_event('cloudpebble_github_repo_sync_started', request=request)
-    return _github_auth_redirect(settings.GITHUB_SYNC_CLIENT_ID, nonce, '/ide/settings/github-sync/callback')
+    return _github_auth_redirect(settings.GITHUB_SYNC_CLIENT_ID, user_github.nonce, '/ide/settings/github-sync/callback')
 
 
 @login_required
@@ -173,18 +219,34 @@ def remove_github_repo_sync_auth(request):
 @require_safe
 def complete_github_repo_sync_auth(request):
     if 'error' in request.GET:
+        messages.error(request, 'GitHub connection could not be completed. Start again from Settings.')
         return HttpResponseRedirect('/ide/settings')
     if not settings.GITHUB_SYNC_CLIENT_ID or not settings.GITHUB_SYNC_CLIENT_SECRET:
         return HttpResponseBadRequest('GitHub Repo Sync app is not configured.')
-    user_github = _complete_github_auth(
-        request,
-        UserGithubRepoSync,
+
+    nonce = request.GET.get('state')
+    code = request.GET.get('code')
+    if not nonce or not code:
+        messages.error(request, 'GitHub connection could not be completed. Start again from Settings.')
+        return HttpResponseRedirect('/ide/settings')
+
+    try:
+        user_github = request.user.github_repo_sync
+    except UserGithubRepoSync.DoesNotExist:
+        messages.error(request, 'GitHub connection could not be completed. Start again from Settings.')
+        return HttpResponseRedirect('/ide/settings')
+    matched_pending_state = _consume_pending_repo_sync_state(request, nonce)
+    if not matched_pending_state and (user_github.nonce is None or nonce != user_github.nonce):
+        messages.error(request, 'GitHub connection could not be completed. Start again from Settings.')
+        return HttpResponseRedirect('/ide/settings')
+
+    _store_github_token_and_profile(
+        user_github,
         settings.GITHUB_SYNC_CLIENT_ID,
         settings.GITHUB_SYNC_CLIENT_SECRET,
-        '/ide/settings/github-sync/callback'
+        '/ide/settings/github-sync/callback',
+        code
     )
-    if user_github is None:
-        return HttpResponseBadRequest('Missing GitHub auth session.')
     send_td_event('cloudpebble_github_repo_sync_linked', data={
         'data': {'username': user_github.username}
     }, request=request)
