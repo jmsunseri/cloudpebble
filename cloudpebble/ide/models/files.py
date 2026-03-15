@@ -57,6 +57,9 @@ class ResourceFile(IdeModel):
             abs_target = "%s/%s%s%s" % (path, filename_parts[0], variant.get_tags_string(), filename_parts[1])
             if not abs_target.startswith(path):
                 raise Exception(_("Suspicious filename: %s") % self.file_name)
+            abs_target_dir = os.path.dirname(abs_target)
+            if not os.path.exists(abs_target_dir):
+                os.makedirs(abs_target_dir)
             variant.copy_to_path(abs_target)
 
     def save(self, *args, **kwargs):

@@ -255,16 +255,18 @@ def do_import_archive(project_id, archive, delete_project=False):
                         file_exists_for_root[root_file_name] = False
 
                     # Create ResourceFile rows in manifest order so generated manifests preserve declared media order.
+                    # Collect all DIR_MAP prefixes (e.g. "images/", "fonts/", "data/").
+                    all_dir_prefixes = set(v + '/' for v in ResourceFile.DIR_MAP.values())
                     for root_file_name, resource_info in desired_resources.items():
-                        # Strip the DIR_MAP prefix (e.g. "images/", "fonts/", "data/") if present,
-                        # since get_path() re-adds it. Keep any further subdirectory structure
-                        # to preserve uniqueness (e.g. "weather/medium/icon.pdc" vs "weather/small/icon.pdc").
-                        kind = resource_info['kind']
-                        dir_prefix = ResourceFile.DIR_MAP.get(kind, '') + '/'
-                        if root_file_name.startswith(dir_prefix):
-                            file_name = root_file_name[len(dir_prefix):]
-                        else:
-                            file_name = root_file_name
+                        # Strip whichever DIR_MAP prefix the path actually starts with,
+                        # since get_path() re-adds the prefix for the resource's kind.
+                        # The manifest path may use a different prefix than the kind implies
+                        # (e.g. a "raw" resource at "images/foo.pdc").
+                        file_name = root_file_name
+                        for prefix in all_dir_prefixes:
+                            if root_file_name.startswith(prefix):
+                                file_name = root_file_name[len(prefix):]
+                                break
                         resources_files[root_file_name] = ResourceFile.objects.create(
                             project=project,
                             file_name=file_name,
