@@ -11,6 +11,11 @@ PACKAGE_MANIFEST = 'package.json'
 APPINFO_MANIFEST = 'appinfo.json'
 MANIFEST_KINDS = [PACKAGE_MANIFEST, APPINFO_MANIFEST]
 
+# Directories that should never be treated as project roots.
+# build/ contains waf build artifacts (including appinfo.json and auto-generated .c files).
+# node_modules/ contains npm dependencies (which may have their own package.json with "pebble" keys).
+_SKIP_DIRS = ('build/', 'node_modules/')
+
 
 class InvalidProjectArchiveException(Exception):
     pass
@@ -53,6 +58,10 @@ def find_project_root_and_manifest(project_items):
     invalid_package_path = None
     for item in project_items:
         base_dir = item.path
+
+        # Skip manifests inside build artifacts or dependency directories.
+        if any(('/' + d) in base_dir or base_dir.startswith(d) for d in _SKIP_DIRS):
+            continue
 
         # Check if the file is one of the kinds of manifest file
         for name in MANIFEST_KINDS:

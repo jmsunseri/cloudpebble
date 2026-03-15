@@ -119,3 +119,33 @@ class TestFindProjectRoot(TestCase):
             "src/"
             "src/main.c",
         ], "", "package.json")
+
+    def test_skip_build_appinfo(self):
+        """ Skip appinfo.json inside build/ directory (waf build artifacts) """
+        self.run_test([
+            "project/build/appinfo.json",
+            "project/build/src/message_keys.auto.c",
+            "project/package.json",
+            "project/src/c/main.c",
+        ], "project/", "project/package.json")
+
+    def test_skip_node_modules_package_json(self):
+        """ Skip package.json inside node_modules/ (npm dependencies like Clay have 'pebble' keys) """
+        self.run_test([
+            "project/node_modules/@rebble/clay/package.json",
+            "project/node_modules/@rebble/clay/src/js/index.js",
+            "project/package.json",
+            "project/src/c/main.c",
+        ], "project/", "project/package.json")
+
+    def test_skip_build_and_node_modules_together(self):
+        """ With both build/ and node_modules/ present, find the real project root """
+        self.run_test([
+            "project/build/appinfo.json",
+            "project/build/src/message_keys.auto.c",
+            "project/node_modules/@rebble/clay/package.json",
+            "project/node_modules/@rebble/clay/src/js/index.js",
+            "project/package.json",
+            "project/src/c/main.c",
+            "project/resources/fonts/font.ttf",
+        ], "project/", "project/package.json")
