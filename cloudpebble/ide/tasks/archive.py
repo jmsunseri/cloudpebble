@@ -256,9 +256,18 @@ def do_import_archive(project_id, archive, delete_project=False):
 
                     # Create ResourceFile rows in manifest order so generated manifests preserve declared media order.
                     for root_file_name, resource_info in desired_resources.items():
+                        # Strip the DIR_MAP prefix (e.g. "images/", "fonts/", "data/") if present,
+                        # since get_path() re-adds it. Keep any further subdirectory structure
+                        # to preserve uniqueness (e.g. "weather/medium/icon.pdc" vs "weather/small/icon.pdc").
+                        kind = resource_info['kind']
+                        dir_prefix = ResourceFile.DIR_MAP.get(kind, '') + '/'
+                        if root_file_name.startswith(dir_prefix):
+                            file_name = root_file_name[len(dir_prefix):]
+                        else:
+                            file_name = root_file_name
                         resources_files[root_file_name] = ResourceFile.objects.create(
                             project=project,
-                            file_name=os.path.basename(root_file_name),
+                            file_name=file_name,
                             kind=resource_info['kind'],
                             is_menu_icon=resource_info['is_menu_icon'])
 
