@@ -38,6 +38,7 @@ django-bower==5.2.0
 
 # Testing
 mock==5.1.0
+websocket-client==1.8.0
 
 # Heroku/production hosting
 dj-static==0.0.6
