@@ -62,7 +62,7 @@ def check_repo_access(user, repo):
     except UnknownObjectException:
         raise
 
-    return repo_obj.has_in_collaborators(user.github_repo_sync.username)
+    return repo_obj.permissions.push
 
 
 def url_to_repo(url):

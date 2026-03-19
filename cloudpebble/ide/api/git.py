@@ -90,7 +90,7 @@ def set_project_repo(request, project_id):
                 project.github_last_commit = None
                 project.github_hook_uuid = None
             else:
-                return {'exists': True, 'access': True, 'updated': True, 'branch_exists': True}
+                return {'exists': True, 'access': False, 'updated': False, 'branch_exists': True}
 
         if branch != project.github_branch:
             project.github_branch = branch
@@ -138,7 +138,7 @@ def create_project_repo(request, project_id):
         raise
 
     project.github_repo = repo.full_name
-    project.github_branch = "main"
+    project.github_branch = repo.default_branch
     project.github_last_sync = None
     project.github_last_commit = None
     project.save()
@@ -149,7 +149,7 @@ def create_project_repo(request, project_id):
         }
     }, request=request, project=project)
 
-    return {"repo": repo.html_url}
+    return {"repo": repo.html_url, "branch": repo.default_branch}
 
 
 def remove_hooks(repo, s):

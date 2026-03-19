@@ -105,7 +105,7 @@ def github_push(user, commit_message, repo_name, project):
     g = Github(user.github_repo_sync.token)
     repo = g.get_repo(repo_name)
     try:
-        branch = repo.get_branch(project.github_branch or repo.master_branch)
+        branch = repo.get_branch(project.github_branch or repo.default_branch)
     except GithubException:
         raise Exception("Unable to get branch.")
     commit = repo.get_git_commit(branch.commit.sha)
@@ -240,6 +240,14 @@ def github_push(user, commit_message, repo_name, project):
                                                              content=generate_wscript_file(project, True))
         has_changed = True
 
+    # Add .gitignore if the repo doesn't have one
+    gitignore_path = os.path.join(root, '.gitignore') if root else '.gitignore'
+    if gitignore_path not in next_tree:
+        next_tree[gitignore_path] = InputGitTreeElement(
+            path=gitignore_path, mode='100644', type='blob',
+            content="build/\nnode_modules/\n")
+        has_changed = True
+
     # Commit the new tree.
     if has_changed:
         logger.debug("Has changed; committing")
@@ -254,13 +262,25 @@ def github_push(user, commit_message, repo_name, project):
             logger.debug("removing subtree node %s", path)
 
         logger.debug([x._InputGitTreeElement__mode for x in next_tree.values()])
-        git_tree = repo.create_git_tree(next_tree.values())
-        logger.debug("Created tree %s", git_tree.sha)
-        git_commit = repo.create_git_commit(commit_message, git_tree, [commit])
-        logger.debug("Created commit %s", git_commit.sha)
-        git_ref = repo.get_git_ref('heads/%s' % (project.github_branch or repo.master_branch))
-        git_ref.edit(git_commit.sha)
-        logger.debug("Updated ref %s", git_ref.ref)
+        branch_name = project.github_branch or repo.default_branch
+        try:
+            git_tree = repo.create_git_tree(next_tree.values())
+            logger.debug("Created tree %s", git_tree.sha)
+            git_commit = repo.create_git_commit(commit_message, git_tree, [commit])
+            logger.debug("Created commit %s", git_commit.sha)
+            git_ref = repo.get_git_ref('heads/%s' % branch_name)
+            git_ref.edit(git_commit.sha)
+            logger.debug("Updated ref %s", git_ref.ref)
+        except GithubException as e:
+            if e.status == 404:
+                raise Exception(
+                    "Could not push to GitHub: you may not have write access to %s, "
+                    "or the branch '%s' may not exist." % (repo_name, branch_name))
+            elif e.status == 409:
+                raise Exception(
+                    "Could not push to GitHub: the remote branch has changed. "
+                    "Try pulling first.")
+            raise Exception("GitHub push failed: %s" % str(e))
         project.github_last_commit = git_commit.sha
         project.github_last_sync = now()
         project.save()
@@ -300,8 +320,8 @@ def github_pull(user, project):
     if repo_name is None:
         raise Exception("No GitHub repo defined.")
     repo = g.get_repo(repo_name)
-    # If somehow we don't have a branch set, this will use the "master_branch"
-    branch_name = project.github_branch or repo.master_branch
+    # If somehow we don't have a branch set, this will use the default branch
+    branch_name = project.github_branch or repo.default_branch
     try:
         branch = repo.get_branch(branch_name)
     except GithubException:
