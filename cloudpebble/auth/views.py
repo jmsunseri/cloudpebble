@@ -89,7 +89,10 @@ class IdeRegistrationMissingView(View):
 
 def logout_view(request):
     logout(request)
-    return redirect("/")
+    response = redirect("/")
+    # Clear cross-domain session cookie so SSO doesn't re-sign-in
+    response.delete_cookie(SESSION_COOKIE_NAME, path='/', domain='.repebble.com')
+    return response
 
 
 def login_action(request):
