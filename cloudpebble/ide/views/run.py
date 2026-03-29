@@ -72,10 +72,10 @@ def run_app(request, app_id):
     # Default to emery if supported, else first in preference order
     default_platform = supported_platforms[0]
 
-    # Build platform list with display names, sorted alphabetically by display name
+    # Build platform list with display names, sorted alphabetically by platform codename
     platform_choices = sorted(
         [{'id': p, 'name': PLATFORM_DISPLAY_NAMES.get(p, p)} for p in supported_platforms],
-        key=lambda x: x['name']
+        key=lambda x: x['id']
     )
 
     try:
