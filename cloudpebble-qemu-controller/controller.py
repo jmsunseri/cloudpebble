@@ -170,7 +170,7 @@ def _kill_idle_emulators():
     try:
         while True:
             try:
-                logging.info("running idle killer for %d emulators", len(emulators))
+                logging.info("STATS active_sessions=%d", len(emulators))
                 to_kill = []
                 for key, emulator in list(emulators.items()):
                     logging.debug("checking %s", key)
