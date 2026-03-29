@@ -155,10 +155,23 @@ def run_app_pbw(request, app_id):
     return response
 
 
+@login_required
+def run_app_users_me(request, app_id):
+    """Proxy GET /api/v1/users/me to appstore API (for voted_ids)."""
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if not auth_header:
+        return JsonResponse({'error': 'No authorization'}, status=401)
+
+    url = '%s/api/v1/users/me' % settings.APPSTORE_API_BASE
+    headers = {'Authorization': auth_header, 'Content-Type': 'application/json'}
+    resp = http_requests.get(url, headers=headers, timeout=10)
+    return HttpResponse(resp.content, status=resp.status_code, content_type='application/json')
+
+
 @csrf_exempt
 @login_required
 def run_app_heart(request, app_id):
-    """Proxy heart toggle to appstore API (avoids CORS)."""
+    """Proxy heart GET/POST/DELETE to appstore API (avoids CORS)."""
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
     if not auth_header:
         return JsonResponse({'error': 'No authorization'}, status=401)

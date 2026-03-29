@@ -62,7 +62,7 @@ from ide.views.project import (
     qemu_config,
     enter_phone_token,
 )
-from ide.views.run import run_app, run_app_pbw, run_app_heart
+from ide.views.run import run_app, run_app_pbw, run_app_heart, run_app_users_me
 from ide.views.settings import (
     settings_page,
     start_github_dev_auth,
@@ -312,5 +312,6 @@ urlpatterns = [
     re_path(r"^run/(?P<app_id>[a-f0-9]{24})$", run_app, name="run_app"),
     re_path(r"^run/(?P<app_id>[a-f0-9]{24})/pbw$", run_app_pbw, name="run_app_pbw"),
     re_path(r"^run/(?P<app_id>[a-f0-9]{24})/heart$", run_app_heart, name="run_app_heart"),
+    re_path(r"^run/(?P<app_id>[a-f0-9]{24})/users-me$", run_app_users_me, name="run_app_users_me"),
     re_path(r"^jsi18n/$", JavaScriptCatalog.as_view(), name="jsi18n"),
 ]

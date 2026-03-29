@@ -572,54 +572,99 @@ $(function() {
     // Firebase client-side auth for heart + locker.
     // The user has a Django session, but we need Firebase client auth too.
     // Use the SSO custom token endpoint to sign into Firebase client-side.
+    // Heart + auth — matches appstore-frontend/src/lib/hearts.ts + AppDetail.tsx
     var mFirebaseUser = null;
+    var mHearted = null; // null = loading, true/false = known state
+    var mHeartCount = {{ app_hearts }};
+    var mHeartMutationLoading = false;
+
+    function getCoreIdToken() {
+        if (!mFirebaseUser) return Promise.resolve(null);
+        return mFirebaseUser.getIdToken(false)['catch'](function(err) {
+            console.error('Failed to get core auth token:', err);
+            return null;
+        });
+    }
+
+    // appstore-frontend: fetchVotedIds → GET /core-api/v1/users/me → voted_ids[]
+    function fetchVotedIds(token) {
+        return new Promise(function(resolve, reject) {
+            $.ajax({
+                url: '/ide/run/' + RUN_APP_ID + '/users-me',
+                type: 'GET',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            }).done(function(data) {
+                var ids = (data && Array.isArray(data.voted_ids)) ? data.voted_ids : [];
+                resolve(ids);
+            }).fail(function(xhr) {
+                reject(new Error('Failed to fetch voted ids: ' + xhr.status));
+            });
+        });
+    }
+
+    // appstore-frontend: addHeart → POST /core-api/v1/apps/id/{id}/heart → response.ok
+    function addHeart(token) {
+        return new Promise(function(resolve) {
+            $.ajax({
+                url: '/ide/run/' + RUN_APP_ID + '/heart',
+                type: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            }).done(function() { resolve(true); }).fail(function() { resolve(false); });
+        });
+    }
+
+    // appstore-frontend: removeHeart → DELETE /core-api/v1/apps/id/{id}/heart → response.ok
+    function removeHeart(token) {
+        return new Promise(function(resolve) {
+            $.ajax({
+                url: '/ide/run/' + RUN_APP_ID + '/heart',
+                type: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+            }).done(function() { resolve(true); }).fail(function() { resolve(false); });
+        });
+    }
+
+    // SSO → Firebase client auth → load heart status (mirrors AppDetail.tsx useEffect)
     $.get('/accounts/api/sso-custom-token').done(function(data) {
         if (data && data.customToken) {
             firebase.auth().signInWithCustomToken(data.customToken).then(function(result) {
                 mFirebaseUser = result.user;
-                console.log('Firebase client auth ready');
+                return getCoreIdToken();
+            }).then(function(token) {
+                if (!token) throw new Error('missing token');
+                return fetchVotedIds(token);
+            }).then(function(votedIds) {
+                mHearted = votedIds.indexOf(RUN_APP_ID) !== -1;
+                $('#heart-btn').toggleClass('hearted', mHearted);
             })['catch'](function(err) {
-                console.warn('Firebase signInWithCustomToken failed:', err);
+                console.error('Failed to load heart status:', err);
+                mHearted = false;
             });
         }
     });
-    // .done() silently ignores 401 failures (no cross-domain cookie = normal for test users)
 
-    // Heart button
-    var mHearted = false;
-    var mHeartCount = {{ app_hearts }};
+    // Heart toggle (mirrors AppDetail.tsx handleHeartToggle)
     $('#heart-btn').click(function() {
-        console.log('Heart clicked, mFirebaseUser:', !!mFirebaseUser);
-        if (!mFirebaseUser) {
-            console.warn('Heart: no Firebase user');
-            return;
-        }
-        var nextHearted = !mHearted;
-        var method = nextHearted ? 'POST' : 'DELETE';
-        mFirebaseUser.getIdToken().then(function(token) {
-            console.log('Heart: got token, sending', method, 'to /ide/run/' + RUN_APP_ID + '/heart');
-            return new Promise(function(resolve, reject) {
-                $.ajax({
-                    url: '/ide/run/' + RUN_APP_ID + '/heart',
-                    type: method,
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
-                }).done(function(data, status, xhr) {
-                    console.log('Heart: success', xhr.status);
-                    resolve();
-                }).fail(function(xhr) {
-                    console.error('Heart: failed', xhr.status, xhr.responseText);
-                    reject(new Error('Heart request failed: ' + xhr.status));
-                });
+        if (mHeartMutationLoading) return;
+        if (!mFirebaseUser) return;
+        if (mHearted === null) return; // still loading
+
+        mHeartMutationLoading = true;
+        getCoreIdToken().then(function(token) {
+            if (!token) return false;
+            var nextHearted = !mHearted;
+            var promise = nextHearted ? addHeart(token) : removeHeart(token);
+            return promise.then(function(success) {
+                if (!success) return;
+                mHearted = nextHearted;
+                mHeartCount = Math.max(0, mHeartCount + (nextHearted ? 1 : -1));
+                $('#heart-count').text(mHeartCount);
+                $('#heart-btn').toggleClass('hearted', mHearted);
             });
-        }).then(function() {
-            mHearted = nextHearted;
-            mHeartCount += nextHearted ? 1 : -1;
-            $('#heart-count').text(mHeartCount);
-            $('#heart-btn').toggleClass('hearted', mHearted);
         })['catch'](function(err) {
-            console.error('Heart failed:', err);
+            console.error('Failed to toggle heart:', err);
+        })['finally'](function() {
+            mHeartMutationLoading = false;
         });
     });
 
