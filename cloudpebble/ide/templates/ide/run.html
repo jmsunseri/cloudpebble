@@ -141,6 +141,20 @@ html, body {
     color: #e7e7e7;
     cursor: default;
 }
+.run-source-link {
+    margin-top: 8px;
+    text-align: center;
+}
+.run-modify-btn {
+    color: #009688;
+    font-size: 13px;
+    text-decoration: none;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+.run-modify-btn:hover {
+    text-decoration: underline;
+    color: #4db6ac;
+}
 .run-settings-hint {
     color: #666;
     font-size: 12px;
@@ -222,6 +236,11 @@ html, body {
                 {% if app_type == 'watchface' %}Add to My Faces{% else %}Add to My Apps{% endif %}
             </button>
         </div>
+        {% if github_import_url %}
+        <div class="run-source-link">
+            <a href="{{ github_import_url }}" class="run-modify-btn">Modify this open source app in CloudPebble</a>
+        </div>
+        {% endif %}
     </div>
 
     <div class="run-emulator-wrapper">
@@ -508,51 +527,70 @@ $(function() {
         }
     });
 
+    // Firebase client-side auth for heart + locker.
+    // The user has a Django session, but we need Firebase client auth too.
+    // Use the SSO custom token endpoint to sign into Firebase client-side.
+    var mFirebaseUser = null;
+    $.get('/accounts/api/sso-custom-token').done(function(data) {
+        if (data && data.customToken) {
+            firebase.auth().signInWithCustomToken(data.customToken).then(function(result) {
+                mFirebaseUser = result.user;
+                console.log('Firebase client auth ready');
+            })['catch'](function(err) {
+                console.warn('Firebase signInWithCustomToken failed:', err);
+            });
+        }
+    });
+    // .done() silently ignores 401 failures (no cross-domain cookie = normal for test users)
+
     // Heart button
     var mHearted = false;
     var mHeartCount = {{ app_hearts }};
     $('#heart-btn').click(function() {
-        var token = USER_SETTINGS.firebase_token;
-        if (!token) return;
+        if (!mFirebaseUser) return;
         var nextHearted = !mHearted;
         var method = nextHearted ? 'POST' : 'DELETE';
-        $.ajax({
-            url: 'https://appstore-api.repebble.com/api/v1/apps/id/' + RUN_APP_ID + '/heart',
-            method: method,
-            headers: { 'Authorization': 'Bearer ' + token },
-            success: function() {
-                mHearted = nextHearted;
-                mHeartCount += nextHearted ? 1 : -1;
-                $('#heart-count').text(mHeartCount);
-                $('#heart-btn').toggleClass('hearted', mHearted);
-            }
+        mFirebaseUser.getIdToken().then(function(token) {
+            return $.ajax({
+                url: '/ide/run/' + RUN_APP_ID + '/heart',
+                method: method,
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+                }
+            });
+        }).then(function() {
+            mHearted = nextHearted;
+            mHeartCount += nextHearted ? 1 : -1;
+            $('#heart-count').text(mHeartCount);
+            $('#heart-btn').toggleClass('hearted', mHearted);
+        })['catch'](function(err) {
+            console.error('Heart failed:', err);
         });
     });
 
-    // Add to locker button
+    // Add to locker button (Firestore direct, same as appstore-frontend)
     var mLockerAdded = false;
+    var lockerLabel = RUN_APP_TYPE === 'watchface' ? 'Add to My Faces' : 'Add to My Apps';
+    var lockerAddedLabel = RUN_APP_TYPE === 'watchface' ? 'In My Faces' : 'In My Apps';
     $('#add-to-locker-btn').click(function() {
-        if (mLockerAdded || !RUN_APP_UUID) return;
+        if (mLockerAdded || !RUN_APP_UUID || !mFirebaseUser) return;
         var btn = $(this);
         btn.text('Adding...');
-        var user = firebase.auth().currentUser;
-        if (!user) {
-            btn.text(RUN_APP_TYPE === 'watchface' ? 'Add to My Faces' : 'Add to My Apps');
-            return;
-        }
         var db = firebase.firestore();
         var docId = RUN_APP_ID + '-' + RUN_APP_UUID;
-        db.collection('lockers').doc(user.uid).collection('entries').doc(docId).set({
+        db.collection('lockers').doc(mFirebaseUser.uid).collection('entries').doc(docId).set({
             uuid: RUN_APP_UUID,
             appstoreId: RUN_APP_ID,
             appstoreSource: 'https://appstore-api.repebble.com/api',
             timelineToken: null
         }).then(function() {
             mLockerAdded = true;
-            btn.text(RUN_APP_TYPE === 'watchface' ? 'In My Faces' : 'In My Apps');
+            btn.text(lockerAddedLabel);
             btn.addClass('added');
-        }).catch(function() {
-            btn.text(RUN_APP_TYPE === 'watchface' ? 'Add to My Faces' : 'Add to My Apps');
+        })['catch'](function(err) {
+            console.error('Locker failed:', err);
+            btn.text(lockerLabel);
         });
     });
 

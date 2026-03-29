@@ -2,12 +2,12 @@ import json
 import logging
 import re
 
-import requests
+import requests as http_requests
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, JsonResponse
 from django.shortcuts import render
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_safe
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ PLATFORM_PREFERENCE = ['emery', 'basalt', 'chalk', 'diorite', 'aplite', 'gabbro'
 def _fetch_app_info(app_id):
     """Fetch app metadata from the App Store API."""
     url = '%s/api/v1/apps/id/%s?hardware=basalt' % (settings.APPSTORE_API_BASE, app_id)
-    resp = requests.get(url, timeout=10)
+    resp = http_requests.get(url, timeout=10)
     resp.raise_for_status()
     data = resp.json().get('data', [])
     if not data:
@@ -99,6 +99,15 @@ def run_app(request, app_id):
     app_hearts = app_info.get('hearts', 0)
     app_uuid = app_info.get('uuid', '')
 
+    # Check if source is a GitHub URL
+    source = app_info.get('source') or ''
+    github_import_url = ''
+    if source and 'github.com/' in source:
+        # Extract account/project from URL like https://github.com/user/repo
+        gh_match = re.search(r'github\.com/([^/]+/[^/]+)', source)
+        if gh_match:
+            github_import_url = '/ide/import/github/%s' % gh_match.group(1)
+
     return render(request, 'ide/run.html', {
         'app_id': app_id,
         'app_title': app_title,
@@ -107,6 +116,7 @@ def run_app(request, app_id):
         'app_type': app_type,
         'app_hearts': app_hearts,
         'app_uuid': app_uuid,
+        'github_import_url': github_import_url,
         'platform_choices': platform_choices,
         'platform_choices_json': json.dumps(platform_choices),
         'supported_platforms_json': json.dumps(supported_platforms),
@@ -132,7 +142,7 @@ def run_app_pbw(request, app_id):
     if not pbw_url:
         raise Http404("No PBW available for this app")
 
-    resp = requests.get(pbw_url, timeout=30, stream=True)
+    resp = http_requests.get(pbw_url, timeout=30, stream=True)
     resp.raise_for_status()
 
     response = HttpResponse(
@@ -143,3 +153,24 @@ def run_app_pbw(request, app_id):
     if resp.headers.get('Content-Length'):
         response['Content-Length'] = resp.headers['Content-Length']
     return response
+
+
+@csrf_exempt
+@login_required
+def run_app_heart(request, app_id):
+    """Proxy heart toggle to appstore API (avoids CORS)."""
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if not auth_header:
+        return JsonResponse({'error': 'No authorization'}, status=401)
+
+    url = '%s/api/v1/apps/id/%s/heart' % (settings.APPSTORE_API_BASE, app_id)
+    headers = {'Authorization': auth_header, 'Content-Type': 'application/json'}
+
+    if request.method == 'POST':
+        resp = http_requests.post(url, headers=headers, timeout=10)
+    elif request.method == 'DELETE':
+        resp = http_requests.delete(url, headers=headers, timeout=10)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    return HttpResponse(resp.content, status=resp.status_code, content_type='application/json')
