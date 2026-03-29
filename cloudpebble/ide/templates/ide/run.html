@@ -155,6 +155,22 @@ html, body {
     text-decoration: underline;
     color: #4db6ac;
 }
+.run-restart-btn {
+    display: block;
+    margin: 12px auto 0;
+    padding: 8px 24px;
+    border: 1px solid #009688;
+    border-radius: 8px;
+    background: #009688;
+    color: #fff;
+    font-size: 14px;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    cursor: pointer;
+}
+.run-restart-btn:hover {
+    background: #00b0a0;
+    border-color: #00b0a0;
+}
 .run-settings-hint {
     color: #666;
     font-size: 12px;
@@ -269,6 +285,7 @@ html, body {
     </div>
 
     <div class="run-status" id="run-status">Loading emulator...</div>
+    <button type="button" class="run-restart-btn" id="restart-btn" style="display:none;">Restart app</button>
 </div>
 {% endblock %}
 
@@ -461,9 +478,24 @@ _.each(SUPPORTED_PLATFORMS, function(p) {
 });
 
 var mCurrentPlatform = null;
+var mAutoShutdownTimer = null;
+var RUN_TIMEOUT_MS = 60000; // 1 minute
 
 function setStatus(text) {
     document.getElementById('run-status').textContent = text;
+}
+
+function startAutoShutdown() {
+    clearTimeout(mAutoShutdownTimer);
+    mAutoShutdownTimer = setTimeout(function() {
+        SharedPebble.disconnect(true);
+        setStatus('Session ended');
+        $('#restart-btn').show();
+    }, RUN_TIMEOUT_MS);
+}
+
+function cancelAutoShutdown() {
+    clearTimeout(mAutoShutdownTimer);
 }
 
 // Gabbro (Round 2) may not have native binaries — some apps run scaled up from Chalk.
@@ -477,11 +509,14 @@ function doInstall(kind, displayName) {
         $('#phone-install-progress').modal('hide');
         setStatus('Running on ' + displayName);
         $('#emulator-container canvas').click();
+        $('#restart-btn').hide();
+        startAutoShutdown();
     });
 }
 
 function launchAndInstall(platform) {
     if (mCurrentPlatform === platform) return;
+    cancelAutoShutdown();
     mCurrentPlatform = platform;
 
     // Update button states
@@ -519,6 +554,13 @@ $(function() {
         launchAndInstall(platform);
     });
 
+    // Restart button — re-launches the current platform
+    $('#restart-btn').click(function() {
+        var platform = mCurrentPlatform || DEFAULT_PLATFORM;
+        mCurrentPlatform = null; // Reset so launchAndInstall doesn't skip it
+        launchAndInstall(platform);
+    });
+
     // Close emulator settings popover when clicking outside
     $(document).on('click', function(e) {
         var $configure = $('#emulator-container .configure');
@@ -547,17 +589,29 @@ $(function() {
     var mHearted = false;
     var mHeartCount = {{ app_hearts }};
     $('#heart-btn').click(function() {
-        if (!mFirebaseUser) return;
+        console.log('Heart clicked, mFirebaseUser:', !!mFirebaseUser);
+        if (!mFirebaseUser) {
+            console.warn('Heart: no Firebase user');
+            return;
+        }
         var nextHearted = !mHearted;
         var method = nextHearted ? 'POST' : 'DELETE';
         mFirebaseUser.getIdToken().then(function(token) {
-            return $.ajax({
-                url: '/ide/run/' + RUN_APP_ID + '/heart',
-                method: method,
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
-                }
+            console.log('Heart: got token, sending', method, 'to /ide/run/' + RUN_APP_ID + '/heart');
+            return new Promise(function(resolve, reject) {
+                $.ajax({
+                    url: '/ide/run/' + RUN_APP_ID + '/heart',
+                    type: method,
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                }).done(function(data, status, xhr) {
+                    console.log('Heart: success', xhr.status);
+                    resolve();
+                }).fail(function(xhr) {
+                    console.error('Heart: failed', xhr.status, xhr.responseText);
+                    reject(new Error('Heart request failed: ' + xhr.status));
+                });
             });
         }).then(function() {
             mHearted = nextHearted;
