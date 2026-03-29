@@ -498,10 +498,13 @@ function cancelAutoShutdown() {
     clearTimeout(mAutoShutdownTimer);
 }
 
-// Gabbro (Round 2) may not have native binaries — some apps run scaled up from Chalk.
-// If gabbro install fails, automatically retry on chalk.
+// Some platforms don't have native binaries — apps run scaled up from another platform.
+// If install fails, automatically retry on the fallback.
+// Gabbro (Round 2) falls back to Chalk (Time Round).
+// Emery (Time 2) falls back to Basalt (Time/Time Steel).
 var PLATFORM_FALLBACK = {
-    gabbro: 'chalk'
+    gabbro: 'chalk',
+    emery: 'basalt'
 };
 
 function doInstall(kind, displayName) {
