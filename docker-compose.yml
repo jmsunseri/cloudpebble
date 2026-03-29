@@ -84,6 +84,7 @@ services:
     restart: unless-stopped
     environment:
       - EMULATOR_FIXED_LIMIT=${EMULATOR_FIXED_LIMIT:-90}
+      - QEMU_ICOUNT=${QEMU_ICOUNT:-}
     profiles:
       - emulator
 

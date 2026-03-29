@@ -171,14 +171,22 @@ def _kill_idle_emulators():
         while True:
             try:
                 logging.info("running idle killer for %d emulators", len(emulators))
-                for key, emulator in emulators.items():
+                to_kill = []
+                for key, emulator in list(emulators.items()):
                     logging.debug("checking %s", key)
                     if now() - emulator.last_ping > 300:
-                        logging.info("killing idle emulator %s", key)
-                        emulator.kill()
-                        del emulators[key]
+                        to_kill.append(key)
                     else:
                         logging.debug("okay; last ping: %s", emulator.last_ping)
+                for key in to_kill:
+                    logging.info("killing idle emulator %s", key)
+                    try:
+                        emulators[key].kill()
+                    except Exception:
+                        logging.exception("failed to kill emulator %s", key)
+                    del emulators[key]
+                if to_kill:
+                    logging.info("killed %d idle emulators", len(to_kill))
             except Exception:
                 logging.exception('Failed to kill idle emulator')
             sys.stdout.flush()

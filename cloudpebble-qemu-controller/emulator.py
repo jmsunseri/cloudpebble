@@ -176,7 +176,8 @@ class Emulator(object):
                 "-cpu", "cortex-m4",
                 "-mtdblock", self.spi_image.name,
             ])
-        self.qemu = subprocess.Popen(qemu_args, cwd=settings.QEMU_DIR, stdout=None, stdin=subprocess.PIPE, stderr=None)
+        self.qemu = subprocess.Popen(qemu_args, cwd=settings.QEMU_DIR, stdout=None, stdin=subprocess.PIPE, stderr=None,
+                                      preexec_fn=lambda: os.nice(19))
         self.qemu.stdin.write(b"change vnc password\n")
         self.qemu.stdin.write(("%s\n" % self.token[:8]).encode())
         self.group.spawn(self.qemu.communicate)
