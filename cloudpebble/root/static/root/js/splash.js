@@ -35,6 +35,13 @@ $(function() {
         // .done() silently ignores failures (401 = no session = normal)
     }
 
+    // Show "Last Used" badge on last-used provider
+    var lastProviderMatch = document.cookie.match(/(?:^|; )last_auth_provider=(\w+)/);
+    if (lastProviderMatch) {
+        var btn = $('.provider-btn[data-provider="' + lastProviderMatch[1] + '"]');
+        btn.append(' <span style="font-size:0.7em; opacity:0.6;">(last used)</span>');
+    }
+
     $('.btn-show-login').click(function() {
         gMainContent.addClass('show-login');
     });
@@ -65,6 +72,10 @@ $(function() {
         $('#provider-chooser').find('.btn').attr('disabled', 'disabled');
 
         firebase.auth().signInWithPopup(provider).then(function(result) {
+            // Remember which provider was used (survives sign-out)
+            var domainAttr = location.hostname.endsWith('.repebble.com') ? '; Domain=.repebble.com' : '';
+            var secureAttr = location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = 'last_auth_provider=' + providerName + '; Max-Age=31536000; Path=/; SameSite=Lax' + domainAttr + secureAttr;
             return result.user.getIdToken();
         }).then(function(idToken) {
             // Create Django session (also sets cross-domain cookie server-side)
