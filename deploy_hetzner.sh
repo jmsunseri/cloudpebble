@@ -34,7 +34,7 @@ rsync -avz --delete \
   "$SCRIPT_DIR/" "$QEMU_SERVER":~/cloudpebble/
 
 echo "==> Building images..."
-$SSH "cd ~/cloudpebble && docker compose --profile emulator --profile codecomplete build $NO_CACHE qemu ycmd && docker compose build $NO_CACHE nginx"
+$SSH "cd ~/cloudpebble && docker compose --profile emulator --profile codecomplete build $NO_CACHE"
 
 echo "==> Restarting services..."
 $SSH "cd ~/cloudpebble && docker compose --profile emulator --profile codecomplete down && docker compose --profile emulator --profile codecomplete up -d"
