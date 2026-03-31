@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_safe
@@ -12,9 +11,12 @@ __author__ = 'katharine'
 
 
 @require_safe
-@login_required
 @ensure_csrf_cookie
 def index(request, github_account=None, github_project=None):
+    if not request.user.is_authenticated:
+        return render(request, 'ide/import_login.html', {
+            'next_url': request.get_full_path(),
+        })
     user = request.user
     my_projects = Project.objects.filter(owner=user).order_by('-last_modified')
     if not user.settings.accepted_terms:
