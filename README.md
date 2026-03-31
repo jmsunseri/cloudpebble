@@ -94,7 +94,14 @@ EXPECT_SSL=yes
 SECRET_KEY=<generate-a-random-secret>
 QEMU_SERVER=root@<your-vm-or-qemu-host>
 QEMU_SSH_KEY=~/.ssh/id_pub
+NGINX_PORT=8000
 ```
+
+- **`PUBLIC_URL`** — The public-facing URL for the instance. Used for browser-facing links.
+- **`SECRET_KEY`** — Django secret key. Generate with `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
+- **`NGINX_PORT`** — Set to `8000` to override system-level nginx.
+
+The `.env` file goes on the VM at `~/cloudpebble/.env` (excluded from rsync by `deploy_dev.sh`).
 
 ### 2. Create/prepare the exe.dev VM
 
