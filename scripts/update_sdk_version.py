@@ -76,8 +76,8 @@ def update_version_strings(current_version: str, new_version: str) -> list[Path]
             new = re.sub(r"RUN pebble sdk activate [^\s]+", f"RUN pebble sdk activate {new_version}", new)
         elif path == ROOT / "cloudpebble-qemu-controller" / "Dockerfile":
             new = re.sub(
-                r"https://sdk\.core\.store/v1/files/sdk-core/[^\s)]+",
-                f"https://sdk.core.store/v1/files/sdk-core/{new_version}",
+                r"https://sdk\.repebble\.com/v1/files/sdk-core/[^\s)]+",
+                f"https://sdk.repebble.com/v1/files/sdk-core/{new_version}",
                 new,
             )
 
