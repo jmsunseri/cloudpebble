@@ -71,8 +71,7 @@ else:
 PY
 
 # Install Pebble SDK (downloads SDK + toolchain + QEMU)
-# cache-bust: 2026-03-31
-RUN pebble sdk install 4.9.148
+RUN pebble sdk install 4.9.148 `# cache-bust: 2026-03-31`
 RUN pebble sdk activate 4.9.148
 
 # Set up SDK paths for CloudPebble
