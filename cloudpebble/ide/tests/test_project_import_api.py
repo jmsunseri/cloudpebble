@@ -40,13 +40,13 @@ class TestProjectImportApi(TestCase):
         import_archive.delay.return_value = _FakeTask()
         response = self.client.post('/ide/import/zip', {
             'name': 'zip-sdk-4927',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
             'archive': SimpleUploadedFile('project.zip', _make_zip_bytes(), content_type='application/zip'),
         })
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
         project = Project.objects.get(id=payload['project_id'])
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
 
     @mock.patch('ide.api.project.do_import_archive')
     def test_import_zip_defaults_to_4927(self, import_archive):
@@ -58,7 +58,7 @@ class TestProjectImportApi(TestCase):
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
         project = Project.objects.get(id=payload['project_id'])
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
 
     @mock.patch('ide.api.project.do_import_archive')
     def test_import_zip_rejects_invalid_sdk(self, import_archive):
@@ -80,13 +80,13 @@ class TestProjectImportApi(TestCase):
             'name': 'github-sdk-4927',
             'repo': 'github.com/example/repo',
             'branch': 'master',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
             'add_remote': 'false',
         })
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
         project = Project.objects.get(id=payload['project_id'])
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
 
     @mock.patch('ide.api.project.do_import_github')
     def test_import_github_defaults_to_4927(self, import_github):
@@ -100,7 +100,7 @@ class TestProjectImportApi(TestCase):
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
         project = Project.objects.get(id=payload['project_id'])
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
 
     @mock.patch('ide.api.project.do_import_github')
     def test_import_github_rejects_invalid_sdk(self, import_github):
@@ -127,7 +127,7 @@ class TestProjectImportApi(TestCase):
             'name': 'native-from-template',
             'type': 'native',
             'template': 'watchface-tutorial/part1',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
         })
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
@@ -142,7 +142,7 @@ class TestProjectImportApi(TestCase):
             'name': 'native-bad-template',
             'type': 'native',
             'template': 'watchface-tutorial/missing',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
         })
         payload = json.loads(response.content)
         self.assertFalse(payload['success'])
@@ -164,7 +164,7 @@ class TestProjectImportApi(TestCase):
             'name': 'alloy-from-template',
             'type': 'alloy',
             'alloy_template': 'hellopebble',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
             'template': '0',
         })
         payload = json.loads(response.content)
@@ -181,7 +181,7 @@ class TestProjectImportApi(TestCase):
             'name': 'alloy-fallback',
             'type': 'alloy',
             'alloy_template': 'missing-template',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
             'template': '0',
         })
         payload = json.loads(response.content)
@@ -195,7 +195,7 @@ class TestProjectImportApi(TestCase):
             'type': 'alloy',
             'template': '0',
             'alloy_template': 'missing-template',
-            'sdk': '4.9.127',
+            'sdk': '4.9.148',
         })
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
@@ -242,15 +242,15 @@ class TestProjectSettingsApi(TestCase):
         self.assertFalse(payload['success'])
         self.assertEqual(response.status_code, 400)
         self.project.refresh_from_db()
-        self.assertEqual(self.project.sdk_version, '4.9.127')
+        self.assertEqual(self.project.sdk_version, '4.9.148')
 
     def test_save_settings_accepts_current_sdk(self):
-        response = self.client.post('/ide/project/{}/save_settings'.format(self.project.id), self._settings_payload('4.9.127'))
+        response = self.client.post('/ide/project/{}/save_settings'.format(self.project.id), self._settings_payload('4.9.148'))
         payload = json.loads(response.content)
         self.assertTrue(payload['success'])
         self.assertEqual(response.status_code, 200)
         self.project.refresh_from_db()
-        self.assertEqual(self.project.sdk_version, '4.9.127')
+        self.assertEqual(self.project.sdk_version, '4.9.148')
 
     def test_save_settings_accepts_flint_for_embeddedjs(self):
         self.project.project_type = 'alloy'
@@ -258,7 +258,7 @@ class TestProjectSettingsApi(TestCase):
         self.project.save()
         SourceFile.objects.create(project=self.project, file_name='main.js', target='embeddedjs').save_text('trace("x");')
 
-        payload = self._settings_payload('4.9.127')
+        payload = self._settings_payload('4.9.148')
         payload['app_platforms'] = 'flint,emery'
         response = self.client.post('/ide/project/{}/save_settings'.format(self.project.id), payload)
         body = json.loads(response.content)

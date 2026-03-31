@@ -3,7 +3,7 @@
 Update CloudPebble SDK version across active code paths.
 
 Usage:
-  scripts/update_sdk_version.py 4.9.127
+  scripts/update_sdk_version.py 4.9.148
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ def write_text(path: Path, content: str) -> None:
 
 
 def validate_version(version: str) -> None:
-    # Accepts values like 4.9.127 or 4.9.121-1-moddable.
+    # Accepts values like 4.9.148 or 4.9.121-1-moddable.
     if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", version):
         fail(f"invalid SDK version '{version}'")
 

@@ -33,9 +33,9 @@ class Project(IdeModel):
     project_type = models.CharField(max_length=10, choices=PROJECT_TYPES, default='native')
 
     SDK_VERSIONS = (
-        ('4.9.127', _('SDK 4.9.127')),
+        ('4.9.148', _('SDK 4.9.148')),
     )
-    sdk_version = models.CharField(max_length=32, choices=SDK_VERSIONS, default='4.9.127')
+    sdk_version = models.CharField(max_length=32, choices=SDK_VERSIONS, default='4.9.148')
 
     # New settings for 2.0
     app_uuid = models.CharField(max_length=36, blank=True, null=True, default=generate_half_uuid, validators=regexes.validator('uuid', _('Invalid UUID.')))

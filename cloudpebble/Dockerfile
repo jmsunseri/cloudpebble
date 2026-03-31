@@ -71,8 +71,8 @@ else:
 PY
 
 # Install Pebble SDK (downloads SDK + toolchain + QEMU)
-RUN pebble sdk install 4.9.127
-RUN pebble sdk activate 4.9.127
+RUN pebble sdk install 4.9.148
+RUN pebble sdk activate 4.9.148
 
 # Set up SDK paths for CloudPebble
 ENV PEBBLE_SDK_PATH=/root/.pebble-sdk

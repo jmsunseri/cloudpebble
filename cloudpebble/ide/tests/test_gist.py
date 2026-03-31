@@ -43,7 +43,7 @@ class TestImportProject(CloudpebbleTestCase):
         })
         expected_name = 'Sample project'
         self.assertEqual(fake_s3.read_last_file(), 'content')
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
         self.assertEqual(project.app_long_name, expected_name)
         self.assertEqual(project.app_version_label, '1.0')
         self.assertEqual(project.name, expected_name)
@@ -62,7 +62,7 @@ class TestImportProject(CloudpebbleTestCase):
                 'sdkVersion': '3'
             })
         })
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
         self.assertEqual(project.project_type, 'native')
 
     def test_simplyjs_gists(self):
@@ -101,7 +101,7 @@ class TestImportProject(CloudpebbleTestCase):
         })
         expected_name = 'Sample project'
         self.assertEqual(fake_s3.read_last_file(), 'content')
-        self.assertEqual(project.sdk_version, '4.9.127')
+        self.assertEqual(project.sdk_version, '4.9.148')
         self.assertEqual(project.app_modern_multi_js, True)  # This default is different to appinfo.json
         self.assertEqual(project.app_long_name, expected_name)
         self.assertEqual(project.app_version_label, '1.0')

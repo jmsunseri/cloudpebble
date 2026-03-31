@@ -618,7 +618,7 @@ def create_project(request):
             c_template = template_value
     project_type = request.POST.get('type', 'native')
     template_name = None
-    sdk_version = str(request.POST.get('sdk', '4.9.127'))
+    sdk_version = str(request.POST.get('sdk', '4.9.148'))
     try:
         with transaction.atomic():
             app_keys = '[]'
@@ -959,7 +959,7 @@ def get_projects(request):
 def import_zip(request):
     zip_file = request.FILES['archive']
     name = request.POST['name']
-    sdk = request.POST.get('sdk', '4.9.127')
+    sdk = request.POST.get('sdk', '4.9.148')
     valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
     if sdk not in valid_sdks:
         raise BadRequest(_("Invalid SDK version."))
@@ -979,7 +979,7 @@ def import_github(request):
     name = request.POST['name']
     repo = request.POST['repo']
     branch = request.POST['branch']
-    sdk = request.POST.get('sdk', '4.9.127')
+    sdk = request.POST.get('sdk', '4.9.148')
     valid_sdks = {x[0] for x in Project.SDK_VERSIONS}
     if sdk not in valid_sdks:
         raise BadRequest(_("Invalid SDK version."))

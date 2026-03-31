@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 def migrate_all_projects_to_4927(apps, schema_editor):
     Project = apps.get_model('ide', 'Project')
-    Project.objects.exclude(sdk_version='4.9.127').update(sdk_version='4.9.127')
+    Project.objects.exclude(sdk_version='4.9.148').update(sdk_version='4.9.148')
 
 
 class Migration(migrations.Migration):
@@ -17,8 +17,8 @@ class Migration(migrations.Migration):
             model_name='project',
             name='sdk_version',
             field=models.CharField(
-                choices=[('4.9.127', 'SDK 4.9.127')],
-                default='4.9.127',
+                choices=[('4.9.148', 'SDK 4.9.148')],
+                default='4.9.148',
                 max_length=32,
             ),
         ),
