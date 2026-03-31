@@ -3,7 +3,12 @@ set -euo pipefail
 
 # Deploy qemu + ycmd + nginx to Hetzner (production emulator + code completion)
 # Config is read from .env (QEMU_SERVER, QEMU_SSH_KEY)
-# Usage: ./deploy_hetzner.sh
+# Usage: ./deploy_hetzner.sh [--no-cache]
+
+NO_CACHE=""
+if [[ "${1:-}" == "--no-cache" ]]; then
+  NO_CACHE="--no-cache"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -29,7 +34,7 @@ rsync -avz --delete \
   "$SCRIPT_DIR/" "$QEMU_SERVER":~/cloudpebble/
 
 echo "==> Building images..."
-$SSH "cd ~/cloudpebble && docker compose --profile emulator --profile codecomplete build qemu ycmd && docker compose build nginx"
+$SSH "cd ~/cloudpebble && docker compose --profile emulator --profile codecomplete build $NO_CACHE qemu ycmd && docker compose build $NO_CACHE nginx"
 
 echo "==> Restarting services..."
 $SSH "cd ~/cloudpebble && docker compose --profile emulator --profile codecomplete down && docker compose --profile emulator --profile codecomplete up -d"
