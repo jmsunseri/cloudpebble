@@ -1,6 +1,13 @@
 from django.db import migrations
 
 
+def rename_if_exists(old_name, new_name):
+    return migrations.RunSQL(
+        sql=f"ALTER TABLE IF EXISTS {old_name} RENAME TO {new_name}",
+        reverse_sql=f"ALTER TABLE IF EXISTS {new_name} RENAME TO {old_name}",
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -8,32 +15,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql='ALTER TABLE social_auth_usersocialauth RENAME TO cloudpebble_social_auth_usersocialauth',
-            reverse_sql='ALTER TABLE cloudpebble_social_auth_usersocialauth RENAME TO social_auth_usersocialauth',
-        ),
-        migrations.RunSQL(
-            sql='ALTER TABLE social_auth_nonce RENAME TO cloudpebble_social_auth_nonce',
-            reverse_sql='ALTER TABLE cloudpebble_social_auth_nonce RENAME TO social_auth_nonce',
-        ),
-        migrations.RunSQL(
-            sql='ALTER TABLE social_auth_association RENAME TO cloudpebble_social_auth_association',
-            reverse_sql='ALTER TABLE cloudpebble_social_auth_association RENAME TO social_auth_association',
-        ),
-        migrations.RunSQL(
-            sql='ALTER TABLE social_auth_code RENAME TO cloudpebble_social_auth_code',
-            reverse_sql='ALTER TABLE cloudpebble_social_auth_code RENAME TO social_auth_code',
-        ),
-        migrations.RunSQL(
-            sql='ALTER TABLE social_auth_partial RENAME TO cloudpebble_social_auth_partial',
-            reverse_sql='ALTER TABLE cloudpebble_social_auth_partial RENAME TO social_auth_partial',
-        ),
-        migrations.RunSQL(
-            sql='ALTER TABLE registration_registrationprofile RENAME TO cloudpebble_registration_registrationprofile',
-            reverse_sql='ALTER TABLE cloudpebble_registration_registrationprofile RENAME TO registration_registrationprofile',
-        ),
-        migrations.RunSQL(
-            sql='ALTER TABLE registration_supervisedregistrationprofile RENAME TO cloudpebble_registration_supervisedregistrationprofile',
-            reverse_sql='ALTER TABLE cloudpebble_registration_supervisedregistrationprofile RENAME TO registration_supervisedregistrationprofile',
-        ),
+        rename_if_exists('social_auth_usersocialauth', 'cloudpebble_social_auth_usersocialauth'),
+        rename_if_exists('social_auth_nonce', 'cloudpebble_social_auth_nonce'),
+        rename_if_exists('social_auth_association', 'cloudpebble_social_auth_association'),
+        rename_if_exists('social_auth_code', 'cloudpebble_social_auth_code'),
+        rename_if_exists('social_auth_partial', 'cloudpebble_social_auth_partial'),
+        rename_if_exists('registration_registrationprofile', 'cloudpebble_registration_registrationprofile'),
+        rename_if_exists('registration_supervisedregistrationprofile', 'cloudpebble_registration_supervisedregistrationprofile'),
     ]
