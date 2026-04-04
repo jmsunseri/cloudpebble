@@ -657,13 +657,25 @@ table.kv-table .kv-remove {
     margin: 0 2px;
 }
 
-.compilation-pane .compilation-buttons.seven-buttons .btn {
+.compilation-pane .compilation-buttons.seven-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+}
+
+.compilation-pane .compilation-buttons.seven-buttons > div {
     width: 77px;
-    margin: 0 2px;
 }
 
 .compilation-pane .compilation-buttons .btn:last-child {
     margin-right: 0;
+}
+
+.compilation-pane .compilation-buttons .info {
+    display: block;
+    padding-top: 2px;
+    font-size: 13px;
+    text-align: center;
 }
 
 .compilation-pane h3 {
