@@ -33,11 +33,15 @@ RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-
   && tar -xzf "node-v$NODE_VERSION-linux-x64.tar.gz" -C /usr/local --strip-components=1 \
   && rm "node-v$NODE_VERSION-linux-x64.tar.gz"
 
-# Pebble SDK 4.3 (for include headers only)
-ENV SDK_THREE_VERSION=4.3
-RUN mkdir /sdk3 && \
-  curl -L "https://github.com/aveao/PebbleArchive/raw/master/SDKCores/sdk-core-$SDK_THREE_VERSION.tar.bz2" | \
-  tar --strip-components=1 -xj -C /sdk3
+# Pebble SDK (for include headers only – must match the version used by the
+# build system so that YCM sees headers for all supported platforms including
+# gabbro and flint).
+RUN SDK_INFO=$(curl -sf https://sdk.repebble.com/v1/files/sdk-core/4.9.148) && \
+  SDK_URL=$(echo "$SDK_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin)['url'])") && \
+  curl -Lf "$SDK_URL" -o /tmp/sdk.tar.gz && \
+  mkdir -p /sdk3 && \
+  tar xzf /tmp/sdk.tar.gz -C /sdk3 --strip-components=1 "sdk-core/" && \
+  rm /tmp/sdk.tar.gz
 
 # Install uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
