@@ -25,6 +25,14 @@
         }, 250);
         var isAndroid = /Android/i.test(navigator.userAgent);
 
+        // DeviceMotion/Orientation events are blocked on insecure origins (http://) for all major browsers 
+	// (see https://w3c.github.io/deviceorientation).
+        if(!window.isSecureContext) {
+            $('.state').text("Sensors are blocked on insecure origins. Open this page over HTTPS (or localhost) and retry.");
+            $('.stuff').hide();
+            return;
+        }
+
         var attachSensorHandlers = function() {
             window.ondevicemotion = _.throttle(function(e) {
                 if(!e.accelerationIncludingGravity) {
@@ -59,12 +67,7 @@
         };
 
         var showBlockedSensorsState = function() {
-            var secure = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            if(!secure) {
-                $('.state').text("Sensors are blocked on insecure origins. Open this page over HTTPS (or localhost) and retry.");
-            } else {
-                $('.state').text("Sensors are blocked. Allow motion/orientation permission when prompted and retry.");
-            }
+            $('.state').text("Sensors are blocked. Allow motion/orientation permission when prompted and retry.");
             $('.stuff').hide();
             $('.enable-sensors').show();
         };
