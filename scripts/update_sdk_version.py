@@ -21,6 +21,7 @@ PROJECT_MODEL = ROOT / "cloudpebble" / "ide" / "models" / "project.py"
 FILES_TO_UPDATE = [
     ROOT / "cloudpebble" / "Dockerfile",
     ROOT / "cloudpebble-qemu-controller" / "Dockerfile",
+    ROOT / "cloudpebble-ycmd-proxy" / "Dockerfile",
     ROOT / "cloudpebble" / "ide" / "api" / "project.py",
     ROOT / "cloudpebble" / "ide" / "models" / "project.py",
     ROOT / "cloudpebble" / "ide" / "tasks" / "gist.py",
@@ -74,7 +75,10 @@ def update_version_strings(current_version: str, new_version: str) -> list[Path]
         if path == ROOT / "cloudpebble" / "Dockerfile":
             new = re.sub(r"RUN pebble sdk install [^\s]+", f"RUN pebble sdk install {new_version}", new)
             new = re.sub(r"RUN pebble sdk activate [^\s]+", f"RUN pebble sdk activate {new_version}", new)
-        elif path == ROOT / "cloudpebble-qemu-controller" / "Dockerfile":
+        elif path in (
+            ROOT / "cloudpebble-qemu-controller" / "Dockerfile",
+            ROOT / "cloudpebble-ycmd-proxy" / "Dockerfile",
+        ):
             new = re.sub(
                 r"https://sdk\.repebble\.com/v1/files/sdk-core/[^\s)]+",
                 f"https://sdk.repebble.com/v1/files/sdk-core/{new_version}",
