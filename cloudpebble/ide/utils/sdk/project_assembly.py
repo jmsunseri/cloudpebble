@@ -5,6 +5,7 @@ import shutil
 from django.conf import settings
 
 from ide.models import ResourceFile
+from ide.utils.crypto import decrypt_value
 from .manifest import manifest_name_for_project, generate_manifest_dict
 from ide.utils.sdk import generate_wscript_file, generate_jshint_file
 
@@ -89,3 +90,11 @@ def assemble_project(project, base_dir, build_result=None):
 
     with open(os.path.join(base_dir, manifest_filename), 'w') as f:
         f.write(json.dumps(manifest_dict))
+
+    # Write .env file for build-time environment variables
+    env_vars = project.env_vars.all()
+    if env_vars:
+        with open(os.path.join(base_dir, '.env'), 'w') as f:
+            for ev in env_vars:
+                decrypted = decrypt_value(ev.encrypted_value)
+                f.write('%s=%s\n' % (ev.key, decrypted))

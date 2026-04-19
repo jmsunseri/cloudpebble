@@ -234,6 +234,18 @@
                     </div>
                 </div>
             </div>
+            <div class="well supports-message-keys">
+                <div class="control-group supports-message-keys">
+                    <label class="control-label" for="settings-env-vars">{% trans "PebbleKit JS Environment Variables" %}</label>
+                    <div class="controls">
+                        <table id="settings-env-vars">
+                        </table>
+                        <div class="help-block">
+                            {% trans "Environment variables that will be available at build time. Values are stored encrypted and never shown after saving." %}
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="well">
                 <div class="control-group">
                     <label class="control-label" for="settings-capabilities-location">{% trans "Uses Location" context "checkbox label" %}</label>

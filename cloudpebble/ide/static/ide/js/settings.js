@@ -241,6 +241,28 @@ CloudPebble.Settings = (function() {
                 }).then(function(data) {
                     CloudPebble.ProjectInfo.published_media = data.published_media;
                 });
+            }).then(function() {
+                if (!CloudPebble.ProjectProperties.supports_message_keys) return;
+
+                var env_var_entries = [];
+                var env_var_data = env_var_table.getValues();
+                _.each(env_var_data, function(tuple) {
+                    var name = tuple[0].trim();
+                    var value = tuple[1];
+                    if (!name) return;
+                    if (!name.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
+                        throw new Error(gettext("Environment variable names must start with a letter or underscore and contain only alphanumeric characters and underscores."));
+                    }
+                    env_var_entries.push({key: name, value: value});
+                });
+
+                return Ajax.Post('/ide/project/' + PROJECT_ID + '/save_env_vars', {
+                    env_vars: JSON.stringify(env_var_entries)
+                }).then(function(data) {
+                    CloudPebble.ProjectInfo.env_vars = data.env_vars;
+                    env_var_table_elm.find('tr.kv-row input.kv-value').val('******');
+                    env_var_table_elm.find('tr:last-child input.kv-value').val('');
+                });
             }).catch(function(e) {
                 throw new Error(interpolate("Failed to save project settings. (%s) %s", [e.status, e.message]));
             });
@@ -334,6 +356,20 @@ CloudPebble.Settings = (function() {
             reset_appkey_table_values(is_array_kind);
             configure_appkey_table(is_array_kind);
         });
+
+        var env_var_table_elm = pane.find('#settings-env-vars');
+        var env_var_table = new CloudPebble.KVTable(env_var_table_elm, {
+            key_name: gettext('Variable Name'),
+            value_name: gettext('Value'),
+            value_type: 'text',
+            default_value: '',
+            tbody_id: 'envvars',
+            data: CloudPebble.ProjectInfo.env_vars || []
+        }).on('rowDeleted', function() {
+            live_form.save(env_var_table_elm.find('tr.kv-row:last-child'));
+        }).on('rowAdded', function(info) {
+            live_form.addElement($(info.element));
+        }).init();
 
         // Published Media management (package projects only)
         if (CloudPebble.ProjectInfo.type == 'package') {
