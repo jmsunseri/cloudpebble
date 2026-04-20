@@ -242,7 +242,7 @@
                         </table>
                         <div class="help-block">
                             {% trans "Environment variables that will be available at build time. Values are stored encrypted and never shown after saving." %}<br><br>
-                            {% trans "In your PebbleKit JS source files, reference variables as <code>process.env.API_KEY</code>. During the build, these references will be replaced with the actual values as JSON strings. For example, <code>process.env.API_KEY</code> becomes <code>&quot;your-api-key&quot;</code>. Variables not defined here will be left as <code>process.env.KEY</code>." %}
+                            {% trans "In your PebbleKit JS source files, reference variables as <code>process.env.KEY</code>. During the build, these references will be replaced with the actual values as JSON strings. For example, <code>process.env.KEY</code> becomes <code>&quot;your-value&quot;</code>. Variables not defined here will be left as <code>process.env.KEY</code>." %}
                         </div>
                     </div>
                 </div>
