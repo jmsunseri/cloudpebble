@@ -9,14 +9,11 @@ Try it out at https://cloudpebble.repebble.com
 ```bash
 git clone https://github.com/coredevices/cloudpebble.git
 cd cloudpebble
-export NGINX_PORT=8080
-export PUBLIC_URL=http://localhost:$NGINX_PORT
+export PUBLIC_URL=http://localhost:8080
 docker compose build
 docker compose up
 # Open http://localhost:8080 and register an account
 ```
-
-> **Note:** `PUBLIC_URL` tells Django how the outside world reaches the site (used for generating callback URLs, media paths, etc.). `NGINX_PORT` controls which host port nginx binds to. They must match.
 
 ### Test GitHub Repo Sync locally
 
@@ -25,7 +22,7 @@ The `GitHub Repo Sync` card changes based on `PUBLIC_URL`, not the browser hostn
 To verify the localhost behavior:
 
 ```bash
-NGINX_PORT=8080 PUBLIC_URL=http://localhost:8080 docker compose up -d --build --force-recreate web nginx
+PUBLIC_URL=http://localhost:8080 docker compose up -d --build --force-recreate web nginx
 # Open http://localhost:8080/ide/settings
 ```
 
@@ -46,7 +43,7 @@ In production, the `Install GitHub app` button handles the full Repo Sync flow: 
 To verify the prod-like behavior locally:
 
 ```bash
-NGINX_PORT=8080 PUBLIC_URL=http://prod-preview:8080 docker compose up -d --build --force-recreate web nginx
+PUBLIC_URL=http://prod-preview:8080 docker compose up -d --build --force-recreate web nginx
 # Open http://localhost:8080/ide/settings
 ```
 
@@ -71,6 +68,12 @@ docker compose build
 docker compose up -d
 ```
 
+Optional services (emulator, code completion):
+
+```bash
+docker compose --profile emulator --profile codecomplete up -d
+```
+
 ## Host it easily on exe.dev
 
 Use this to bootstrap a brand-new `exe.dev` VM and get CloudPebble running.
@@ -88,14 +91,15 @@ Set `.env` values for your dev host and secrets (at minimum):
 ```bash
 PUBLIC_URL=https://YOURDOMAIN.exe.xyz
 EXPECT_SSL=yes
-NGINX_PORT=8000
+SECRET_KEY=<generate-a-random-secret>
 QEMU_SERVER=root@<your-vm-or-qemu-host>
 QEMU_SSH_KEY=~/.ssh/id_pub
+NGINX_PORT=8000
 ```
 
-- **`PUBLIC_URL`** — The public-facing URL for the instance. Used for browser-facing links. Must match the port in `NGINX_PORT`.
+- **`PUBLIC_URL`** — The public-facing URL for the instance. Used for browser-facing links.
+- **`SECRET_KEY`** — Django secret key. Generate with `python3 -c "import secrets; print(secrets.token_urlsafe(50))"`.
 - **`NGINX_PORT`** — Set to `8000` to override system-level nginx.
-- **`SECRET_KEY`** — Optional. Django secret key (auto-generated and persisted to a Docker volume if not set). Generate your own with `python3 -c "import secrets; print(secrets.token_urlsafe(50))"` if you prefer.
 
 The `.env` file goes on the VM at `~/cloudpebble/.env` (excluded from rsync by `deploy_dev.sh`).
 
@@ -155,6 +159,15 @@ ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "
 "
 ```
 
+Optional profiles:
+
+```bash
+ssh -i ~/.ssh/id_exe YOURDOMAIN.exe.xyz "
+  cd ~/cloudpebble &&
+  docker compose --profile emulator --profile codecomplete up -d
+"
+```
+
 ### 5. Verify
 
 ```bash
@@ -178,10 +191,10 @@ User.objects.create_user('testuser', 'test@example.com', 'testpass123')
 ## Architecture
 
 ```
-Browser → nginx:$NGINX_PORT → web:80       (Django app)
-                             → qemu:80      (emulator, WebSocket/VNC)
-                             → ycmd:80      (code completion, WebSocket)
-                             → s3:4569      (build artifacts via /s3builds/)
+Browser → nginx:8080 → web:80       (Django app)
+                     → qemu:80      (emulator, WebSocket/VNC)
+                     → ycmd:80      (code completion, WebSocket)
+                     → s3:4569      (build artifacts via /s3builds/)
 
 web ←→ postgres      (database)
     ←→ redis         (Celery broker)
@@ -197,8 +210,8 @@ celery ←→ same backends (background build tasks)
 | **nginx** | nginx:alpine | Reverse proxy, WebSocket routing, S3 proxy |
 | **web** | Python 3.11 + Django 4.2 | IDE frontend and REST API |
 | **celery** | Same as web | Background build tasks |
-| **qemu** | Python 3.11 + QEMU | Pebble emulator with VNC |
-| **ycmd** | Python 3.11 + ycmd/clang | C code completion |
+| **qemu** | Python 3.11 + QEMU | Pebble emulator with VNC (profile: `emulator`) |
+| **ycmd** | Python 3.11 + ycmd/clang | C code completion (profile: `codecomplete`) |
 | **redis** | redis | Celery task broker |
 | **postgres** | postgres:16 | Database |
 | **s3** | kuracloud/fake-s3 | S3-compatible object storage |
@@ -274,9 +287,7 @@ Key variables set in `docker-compose.yml`:
 
 | Variable | Purpose |
 |----------|---------|
-| `PUBLIC_URL` | Public-facing URL (e.g. `http://localhost:8080`). Must match `NGINX_PORT`. |
-| `NGINX_PORT` | Host port nginx binds to (default: `80`) |
-| `SECRET_KEY` | Django secret key (auto-generated and persisted if not set) |
+| `PUBLIC_URL` | Public-facing URL (e.g. `http://localhost:8080`) |
 | `EXPECT_SSL` | Set to `yes` for HTTPS deployments |
 | `AWS_S3_FAKE_S3` | fake-s3 endpoint (default: `s3:4569`) |
 | `QEMU_URLS` | Emulator controller URL |

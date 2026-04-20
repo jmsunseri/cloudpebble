@@ -9,8 +9,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - web
-      - qemu
-      - ycmd
+      # - qemu  # Optional - emulator
+      # - ycmd  # Optional - code completion
 
   web:
     build: cloudpebble/
@@ -18,10 +18,8 @@ services:
       - redis
       - postgres
       - s3
-      - qemu
-      - ycmd
-    volumes:
-      - secret-key-data:/data
+      # - qemu  # Optional - emulator
+      # - ycmd  # Optional - code completion
     environment:
       - DEBUG=yes
       - RUN_WEB=yes
@@ -36,8 +34,7 @@ services:
       - AWS_S3_BUILDS_BUCKET=${AWS_S3_BUILDS_BUCKET:-builds.cloudpebble.net}
       - AWS_S3_EXPORT_BUCKET=${AWS_S3_EXPORT_BUCKET:-export.cloudpebble.net}
       - MEDIA_URL=${PUBLIC_URL}/s3builds/
-      - QEMU_URLS=http://qemu/
-      - QEMU_PUBLIC_URL=${PUBLIC_URL}
+      - QEMU_URLS=${PUBLIC_URL}/
       - YCM_URLS=http://ycmd:80/
       - YCMD_PUBLIC_URL=${YCMD_PUBLIC_URL:-}
       - PUBLIC_URL=${PUBLIC_URL}/
@@ -50,6 +47,9 @@ services:
       - GITHUB_SECRET=${GITHUB_SECRET:-}
       - GITHUB_SYNC_CLIENT_ID=${GITHUB_SYNC_CLIENT_ID:-}
       - GITHUB_SYNC_CLIENT_SECRET=${GITHUB_SYNC_CLIENT_SECRET:-}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - REDIS_URL=${REDIS_URL:-}
 
   celery:
     build: cloudpebble/
@@ -57,8 +57,6 @@ services:
       - redis
       - postgres
       - s3
-    volumes:
-      - secret-key-data:/data
     environment:
       - DEBUG=yes
       - RUN_CELERY=yes
@@ -77,15 +75,22 @@ services:
       - GITHUB_SECRET=${GITHUB_SECRET:-}
       - GITHUB_SYNC_CLIENT_ID=${GITHUB_SYNC_CLIENT_ID:-}
       - GITHUB_SYNC_CLIENT_SECRET=${GITHUB_SYNC_CLIENT_SECRET:-}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - REDIS_URL=${REDIS_URL:-}
 
   qemu:
     build: cloudpebble-qemu-controller/
     restart: unless-stopped
     environment:
       - EMULATOR_FIXED_LIMIT=${EMULATOR_FIXED_LIMIT:-90}
+    profiles:
+      - emulator
 
   ycmd:
     build: cloudpebble-ycmd-proxy/
+    profiles:
+      - codecomplete
 
   redis:
     image: redis
@@ -107,4 +112,3 @@ services:
 volumes:
   postgres-data:
   s3-data:
-  secret-key-data:
