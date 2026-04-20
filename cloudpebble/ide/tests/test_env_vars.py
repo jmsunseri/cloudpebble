@@ -216,7 +216,14 @@ class TestEnvVarsInProjectAssembly(TestCase):
         self.project_id = result['id']
         self.project = Project.objects.get(pk=self.project_id)
 
-    def test_env_file_written_during_assembly(self):
+    def test_process_env_substituted_in_pkjs_files(self):
+        from ide.models import SourceFile
+        SourceFile.objects.create(
+            project=self.project,
+            file_name='index.js',
+            target='pkjs'
+        ).save_text('var key = process.env.API_KEY; var host = process.env.DB_HOST;')
+
         EnvironmentVariable.objects.create(
             project=self.project,
             key='API_KEY',
@@ -231,20 +238,130 @@ class TestEnvVarsInProjectAssembly(TestCase):
         base_dir = tempfile.mkdtemp()
         try:
             assemble_project(self.project, base_dir)
-            env_path = os.path.join(base_dir, '.env')
-            self.assertTrue(os.path.exists(env_path))
-            with open(env_path, 'r') as f:
+            js_path = os.path.join(base_dir, 'src', 'pkjs', 'index.js')
+            with open(js_path, 'r') as f:
                 content = f.read()
-            self.assertIn('API_KEY=secret123', content)
-            self.assertIn('DB_HOST=db.example.com', content)
+            self.assertIn('"secret123"', content)
+            self.assertIn('"db.example.com"', content)
+            self.assertNotIn('process.env.API_KEY', content)
+            self.assertNotIn('process.env.DB_HOST', content)
         finally:
             shutil.rmtree(base_dir)
 
-    def test_no_env_file_when_no_env_vars(self):
+    def test_unknown_process_env_left_unchanged(self):
+        from ide.models import SourceFile
+        SourceFile.objects.create(
+            project=self.project,
+            file_name='index.js',
+            target='pkjs'
+        ).save_text('var x = process.env.UNKNOWN_VAR;')
+
+        EnvironmentVariable.objects.create(
+            project=self.project,
+            key='API_KEY',
+            encrypted_value=encrypt_value('secret123')
+        )
+
         base_dir = tempfile.mkdtemp()
         try:
             assemble_project(self.project, base_dir)
-            env_path = os.path.join(base_dir, '.env')
-            self.assertFalse(os.path.exists(env_path))
+            js_path = os.path.join(base_dir, 'src', 'pkjs', 'index.js')
+            with open(js_path, 'r') as f:
+                content = f.read()
+            self.assertIn('process.env.UNKNOWN_VAR', content)
+            self.assertNotIn('process.env.API_KEY', content)
+        finally:
+            shutil.rmtree(base_dir)
+
+    def test_no_substitution_when_no_env_vars(self):
+        from ide.models import SourceFile
+        SourceFile.objects.create(
+            project=self.project,
+            file_name='index.js',
+            target='pkjs'
+        ).save_text('var key = process.env.API_KEY;')
+
+        base_dir = tempfile.mkdtemp()
+        try:
+            assemble_project(self.project, base_dir)
+            js_path = os.path.join(base_dir, 'src', 'pkjs', 'index.js')
+            with open(js_path, 'r') as f:
+                content = f.read()
+            self.assertIn('process.env.API_KEY', content)
+        finally:
+            shutil.rmtree(base_dir)
+
+    def test_value_with_double_quotes_is_escaped(self):
+        from ide.models import SourceFile
+        SourceFile.objects.create(
+            project=self.project,
+            file_name='index.js',
+            target='pkjs'
+        ).save_text('var x = process.env.MSG;')
+
+        EnvironmentVariable.objects.create(
+            project=self.project,
+            key='MSG',
+            encrypted_value=encrypt_value('he said "hello"')
+        )
+
+        base_dir = tempfile.mkdtemp()
+        try:
+            assemble_project(self.project, base_dir)
+            js_path = os.path.join(base_dir, 'src', 'pkjs', 'index.js')
+            with open(js_path, 'r') as f:
+                content = f.read()
+            self.assertIn('"he said \\"hello\\""', content)
+            self.assertNotIn('process.env.MSG', content)
+        finally:
+            shutil.rmtree(base_dir)
+
+    def test_value_with_single_quotes_is_valid_json(self):
+        from ide.models import SourceFile
+        SourceFile.objects.create(
+            project=self.project,
+            file_name='index.js',
+            target='pkjs'
+        ).save_text("var x = process.env.MSG;")
+
+        EnvironmentVariable.objects.create(
+            project=self.project,
+            key='MSG',
+            encrypted_value=encrypt_value("it's working")
+        )
+
+        base_dir = tempfile.mkdtemp()
+        try:
+            assemble_project(self.project, base_dir)
+            js_path = os.path.join(base_dir, 'src', 'pkjs', 'index.js')
+            with open(js_path, 'r') as f:
+                content = f.read()
+            parsed = json.loads('{' + content.replace('var x = ', '"result":').rstrip(';') + '}')
+            self.assertEqual(parsed['result'], "it's working")
+        finally:
+            shutil.rmtree(base_dir)
+
+    def test_value_with_newline_is_escaped(self):
+        from ide.models import SourceFile
+        SourceFile.objects.create(
+            project=self.project,
+            file_name='index.js',
+            target='pkjs'
+        ).save_text('var x = process.env.MSG;')
+
+        EnvironmentVariable.objects.create(
+            project=self.project,
+            key='MSG',
+            encrypted_value=encrypt_value('line1\nline2')
+        )
+
+        base_dir = tempfile.mkdtemp()
+        try:
+            assemble_project(self.project, base_dir)
+            js_path = os.path.join(base_dir, 'src', 'pkjs', 'index.js')
+            with open(js_path, 'r') as f:
+                content = f.read()
+            self.assertNotIn('\n', content.split('= ', 1)[1].rstrip(';'))
+            self.assertIn('\\n', content)
         finally:
             shutil.rmtree(base_dir)
