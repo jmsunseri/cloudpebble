@@ -360,17 +360,11 @@ def github_pull(user, project):
     zip_url = repo.get_archive_link('zipball', branch_name)
     u = urlopen(zip_url)
 
-    # And wipe the project!
-    # TODO: transaction support for file contents would be nice...
-    project.source_files.all().delete()
-    project.resources.all().delete()
+    import_result = do_import_archive(project.id, u.read(), wipe_existing=True)
 
-    # This must happen before do_import_archive or we'll stamp on its results.
     project.github_last_commit = branch.commit.sha
     project.github_last_sync = now()
     project.save()
-
-    import_result = do_import_archive(project.id, u.read())
 
     send_td_event('cloudpebble_github_pull', data={
         'data': {
