@@ -1,4 +1,5 @@
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 import json
@@ -313,6 +314,48 @@ class GitProjectItem(BaseProjectItem):
         return self.git_item.path
 
 
+PEBBLEJS_BUILTIN_RESOURCES = frozenset({
+    'MONO_FONT_14', 'IMAGE_MENU_ICON', 'IMAGE_LOGO_SPLASH', 'IMAGE_TILE_SPLASH',
+})
+
+
+def validate_resources_against_tree(paths_notags, manifest, project):
+    """Validate that all resources referenced in the manifest exist in the tree.
+
+    Given a set of tag-stripped paths from a git tree and a parsed manifest dict,
+    checks that every resource file listed in the manifest is present in the tree.
+    Skips built-in Pebble.js resources that don't need to be in the repo.
+
+    Returns the manifest's media list for further processing.
+
+    Raises Exception if a required resource is missing.
+    """
+    resource_root = project.resources_path + '/'
+    manifest_resources = manifest.get('resources', {}).get('media', [])
+    project_type = manifest.get('projectType', 'native')
+
+    for resource in manifest_resources:
+        path = resource_root + resource['file']
+        if project_type == 'pebblejs' and resource['name'] in PEBBLEJS_BUILTIN_RESOURCES:
+            continue
+        if path not in paths_notags:
+            raise Exception("Resource %s not found in repo." % path)
+
+    return manifest_resources
+
+
+def parse_manifest_from_tree(tree_items, project):
+    """Find and parse the manifest from a git tree, returning (root, manifest_dict).
+
+    Takes a list of BaseProjectItem instances and a Project. Returns a tuple of
+    (project_root_path, manifest_dict). Raises ValueError or
+    InvalidProjectArchiveException if the tree has no valid manifest.
+    """
+    root, manifest_item = find_project_root_and_manifest(tree_items)
+    manifest = json.loads(manifest_item.read())
+    return root, manifest
+
+
 @git_auth_check
 def github_pull(user, project):
     g = get_github(user)
@@ -331,34 +374,27 @@ def github_pull(user, project):
         # Nothing to do.
         return False
 
-    commit = repo.get_git_commit(branch.commit.sha)
-    tree = repo.get_git_tree(commit.tree.sha, recursive=True)
-
-    paths = {x.path: x for x in tree.tree}
-    paths_notags = {get_root_path(x) for x in paths}
-
-    # First try finding the resource map so we don't fail out part-done later.
-    try:
-        root, manifest_item = find_project_root_and_manifest([GitProjectItem(repo, x) for x in tree.tree])
-    except ValueError as e:
-        raise ValueError("In manifest file: %s" % str(e))
-    resource_root = root + project.resources_path + '/'
-    manifest = json.loads(manifest_item.read())
-
-    media = manifest.get('resources', {}).get('media', [])
-    project_type = manifest.get('projectType', 'native')
-
-    for resource in media:
-        path = resource_root + resource['file']
-        if project_type == 'pebblejs' and resource['name'] in {
-            'MONO_FONT_14', 'IMAGE_MENU_ICON', 'IMAGE_LOGO_SPLASH', 'IMAGE_TILE_SPLASH'}:
-            continue
-        if path not in paths_notags:
-            raise Exception("Resource %s not found in repo." % path)
-
-    # Now we grab the zip.
+    # Start the zip download in parallel with validation.
+    # We've already confirmed the commit differs, so the zip will be needed.
     zip_url = repo.get_archive_link('zipball', branch_name)
-    u = urlopen(zip_url)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        zip_future = executor.submit(urlopen, zip_url)
+
+        commit = repo.get_git_commit(branch.commit.sha)
+        tree = repo.get_git_tree(commit.tree.sha, recursive=True)
+
+        paths_notags = {get_root_path(x) for x in tree.tree}
+
+        try:
+            root, manifest = parse_manifest_from_tree(
+                [GitProjectItem(repo, x) for x in tree.tree], project)
+        except ValueError as e:
+            raise ValueError("In manifest file: %s" % str(e))
+
+        validate_resources_against_tree(paths_notags, manifest, project)
+
+        # Collect the zip download (it's been running in parallel).
+        u = zip_future.result()
 
     import_result = do_import_archive(project.id, u.read(), wipe_existing=True)
 
