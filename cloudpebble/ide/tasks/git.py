@@ -1,6 +1,5 @@
 import base64
 import io
-from concurrent.futures import ThreadPoolExecutor
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 import json
